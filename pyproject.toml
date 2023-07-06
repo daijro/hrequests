@@ -1,0 +1,33 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "hrequests"
+version = "0.1.0"
+description = "Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library."
+authors = ["daijro <daijro.dev@gmail.com>"]
+license = "Apache-2.0"
+include = ["hrequests/bin/*"]
+readme = "README.md"
+repository = "https://github.com/daijro/hrequests"
+keywords = ["tls", "client", "http", "scraping", "requests", "humans", "playwright"]
+classifiers = [
+	"Topic :: Internet :: WWW/HTTP",
+	"Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+orjson = "*"
+httpx = "*"
+playwright = "*"
+playwright-stealth = "*"
+wget = "*"
+async-class = "*"
+aioprocessing = "*"
+numpy = "*"
+gevent = "*"
+fake-headers = "*"
+fake-useragent = "*"
