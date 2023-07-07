@@ -16,7 +16,10 @@
         <img src="https://img.shields.io/badge/code%20style-black-black.svg">
     </a>
     <a href="https://github.com/PyCQA/isort">
-        <img src="https://img.shields.io/badge/imports-isort-red.svg">
+        <img src="https://img.shields.io/badge/imports-isort-purple.svg">
+    </a>
+    <a href="https://pypi.org/project/hrequests/">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests">
     </a>
 </p>
     Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library.
