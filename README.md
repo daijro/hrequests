@@ -13,7 +13,7 @@
         <img src="https://img.shields.io/badge/python-3.6&#8208;3.10-blue">
     </a>
     <a href="https://pypi.org/project/hrequests/">
-        <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests">
+        <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
     </a>
     <a href="https://github.com/ambv/black">
         <img src="https://img.shields.io/badge/code%20style-black-black.svg">
@@ -405,7 +405,7 @@ To handle timeouts or any other exception during the connection of the request, 
 >>> def exception_handler(request, exception):
 ...    return f'Response failed: {exception}'
 
-... bad_reqs = [
+>>> bad_reqs = [
 ...     hrequests.async_get('http://httpbin.org/delay/1', timeout=0.001),
 ...     hrequests.async_get('http://fakedomain/'),
 ...     hrequests.async_get('http://example.com/'),

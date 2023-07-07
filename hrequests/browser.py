@@ -6,7 +6,6 @@ from typing import Any, Callable, Dict, Literal, Optional, Pattern, Union
 
 from aioprocessing import Queue
 from fake_headers import Headers
-from fake_useragent import UserAgent
 from playwright._impl._api_types import Error as PlaywrightError
 from playwright._impl._api_types import TimeoutError as PlaywrightTimeoutError
 

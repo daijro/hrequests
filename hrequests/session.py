@@ -127,7 +127,7 @@ class TLSSession(TLSClient):
         verify: bool = True,  # maps to insecure_skip_verify
         timeout: int = 30,  # maps to timeout_seconds
         proxies: Optional[dict] = None,
-    ) -> hrequests.response.Response:
+    ) -> 'hrequests.response.Response':
         """
         Send a request with TLS client
 
