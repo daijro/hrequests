@@ -131,7 +131,7 @@ def mock_element_handle(element, page) -> None:
     element.hover = hover_mocker
 
     async def type_mocker(
-        text, delay=200, no_wait_after=False, timeout: typing.Optional[float] = None
+        text, delay=50, no_wait_after=False, timeout: typing.Optional[float] = None
     ):
         await ElementHandle.type(
             element, page, text, delay=delay, no_wait_after=no_wait_after, timeout=timeout
@@ -386,7 +386,7 @@ class ElementHandle:
                 await frame.page.keyboard.up(modifier)
 
     async def type(
-        element, page, text, delay=200, no_wait_after=False, timeout: typing.Optional[float] = None
+        element, page, text, delay=50, no_wait_after=False, timeout: typing.Optional[float] = None
     ) -> None:
         frame = element.owner_frame()
 

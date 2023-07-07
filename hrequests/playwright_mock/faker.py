@@ -5,8 +5,9 @@ from async_class import AsyncObject, link
 
 
 class Faker(AsyncObject):
-    async def __ainit__(self, context, proxy, browser_name) -> None:
+    async def __ainit__(self, context, proxy, browser_name, user_agent) -> None:
         link(self, context)
+        self.useragent: str = user_agent
         threads = [self.computer(proxy, browser_name), self.locale(proxy)]
         await asyncio.gather(*threads)
 
@@ -18,12 +19,12 @@ class Faker(AsyncObject):
                 r = await proxy.httpx.get(url, timeout=20)
                 data = r.json()
                 # self.useragent = data.get("ua")
-                self.vendor = data.get("vendor")
-                self.renderer = data.get("renderer")
-                self.width = data.get("width", 0)
-                self.height = data.get("height", 0)
-                self.avail_width = data.get("availWidth", 0)
-                self.avail_height = data.get("availHeight", 0)
+                self.vendor: str = data.get("vendor")
+                self.renderer: str = data.get("renderer")
+                self.width: int = data.get("width", 0)
+                self.height: int = data.get("height", 0)
+                self.avail_width: int = data.get("availWidth", 0)
+                self.avail_height: int = data.get("availHeight", 0)
                 # If the Window is too small for the captcha
                 if (
                     self.width
@@ -35,12 +36,12 @@ class Faker(AsyncObject):
         except Exception:
             # If Bablosoft Website is offline
             # self.useragent = UserAgent().msie
-            self.vendor = "Google Inc."
-            self.renderer = "Google Inc. (AMD)"
-            self.width = 1280
-            self.height = 720
-            self.avail_width = 1280
-            self.avail_height = 720
+            self.vendor: str = "Google Inc."
+            self.renderer: str = "Google Inc. (AMD)"
+            self.width: int = 1280
+            self.height: int = 720
+            self.avail_width: int = 1280
+            self.avail_height: int = 720
 
     async def locale(self, proxy) -> None:
         with open(join(dirname(__file__), "locale.json"), "r") as f:

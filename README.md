@@ -351,8 +351,11 @@ Returns:
 `imap` returns a generator that yields responses as they come in:
 
 ```py
-for resp in hrequests.imap(reqs, size=3):
-    print(resp)
+>>> for resp in hrequests.imap(reqs, size=3):
+...    print(resp)
+<Response [200]>
+<Response [200]>
+<Response [200]>
 ```
 
 <details>
@@ -374,8 +377,11 @@ Yields:
 `imap_enum` returns a generator that yields a tuple of `(index, response)` as they come in. The `index` is the index of the request in the original list:
 
 ```py
-for index, resp in hrequests.imap_enum(reqs, size=3):
-    print(index, resp)
+>>> for index, resp in hrequests.imap_enum(reqs, size=3):
+...     print(index, resp)
+(1, <Response [200]>)
+(0, <Response [200]>)
+(2, <Response [200]>)
 ```
 
 <details>
@@ -410,7 +416,7 @@ To handle timeouts or any other exception during the connection of the request, 
 ...     hrequests.async_get('http://fakedomain/'),
 ...     hrequests.async_get('http://example.com/'),
 ... ]
->>> hrequests.map(bad_reqs, size=2, exception_handler=exception_handler)
+>>> hrequests.map(bad_reqs, size=3, exception_handler=exception_handler)
 ['Response failed: Connection error', 'Response failed: Connection error', <Response [200]>]
 ```
 
@@ -630,7 +636,7 @@ Toggle loading unnessecary resources such as images, fonts, styles, etc:
 page.allow_styling: bool = False
 ```
 
-#### Pulling page data
+### Pulling page data
 
 
 Get current page url:
@@ -670,7 +676,7 @@ Parameters:
 ```
 </details>
 
-#### Navigate the browser
+### Navigate the browser
 
 Navigate to a url:
 
@@ -686,7 +692,7 @@ Navigate through page history:
 >>> page.forward()
 ```
 
-#### Controlling elements
+### Controlling elements
 Click an element:
 ```py
 >>> page.click('#my-button')
@@ -715,6 +721,8 @@ Type text into an element:
 Parameters:
     selector (str): CSS selector to type in
     text (str): Text to type
+    delay (int, optional): Delay between keypresses in ms. On mock_human, this is randomized by 50%. Defaults to 50.
+    timeout (float, optional): Timeout in seconds. Defaults to 30.
 ```
 </details>
 
@@ -738,9 +746,25 @@ Throws:
 ```
 </details>
 
+### Check page elements
+
+Check if a selector is visible and enabled:
+```py
+>>> page.isVisible('#my-selector'): bool
+>>> page.isEnabled('#my-selector'): bool
+```
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    selector (str): Selector to check
+```
+</details>
+
 Evaluate and return a script:
 ```py
->>> result = page.evaluate('(selector) => {document.querySelector().checked}', arg='#my-selector')
+>>> page.evaluate('selector => document.querySelector(selector).checked', '#my-selector')
 ```
 <details>
 <summary>Parameters</summary>
@@ -752,7 +776,7 @@ Parameters:
 ```
 </details>
 
-#### Awaiting events
+### Awaiting events
 
 ```py
 >>> page.awaitNavigation()
@@ -773,7 +797,7 @@ Throws:
 Wait for a script or function to return a truthy value:
 
 ```py
->>> page.awaitScript('(selector) => document.querySelector(selector).checked', arg='#my-selector')
+>>> page.awaitScript('selector => document.querySelector(selector).value === 100', '#progress')
 ```
 
 <details>
@@ -783,24 +807,6 @@ Wait for a script or function to return a truthy value:
 Parameters:
     script (str): Script to evaluate
     arg (str, optional): Argument to pass to script
-    timeout (float, optional): Timeout in seconds. Defaults to 30.
-
-Throws:
-    hrequests.exceptions.BrowserTimeoutException: If timeout is reached
-```
-</details>
-
-Wait for a selector to exist on the page:
-
-```py
->>> page.awaitSelector('#my-selector')
-```
-<details>
-<summary>Parameters</summary>
-
-```
-Parameters:
-    selector (str): Selector to wait for
     timeout (float, optional): Timeout in seconds. Defaults to 30.
 
 Throws:
@@ -826,11 +832,45 @@ Throws:
 ```
 </details>
 
-#### Requests & Responses
+Wait for an element to exist on the page:
 
+```py
+>>> page.awaitSelector('#my-selector')
+```
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    selector (str): Selector to wait for
+    timeout (float, optional): Timeout in seconds. Defaults to 30.
+
+Throws:
+    hrequests.exceptions.BrowserTimeoutException: If timeout is reached
+```
+</details>
+
+Wait for an element to be enabled:
+
+```py
+>>> page.awaitEnabled('#my-selector')
+```
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    selector (str): Selector to wait for
+    timeout (float, optional): Timeout in seconds. Defaults to 30.
+
+Throws:
+    hrequests.exceptions.BrowserTimeoutException: If timeout is reached
+```
+</details>
+
+### Requests & Responses
 
 Requests can also be sent within browser sessions. These operate the same as the standard `hrequests.request`, and will use the browser's cookies and headers. The `BrowserSession` cookies will be updated with each request.
-
 
 This returns a normal `Response` object:
 ```py
@@ -862,7 +902,7 @@ Returns:
 
 Other methods include `post`, `put`, `delete`, `head`, and `patch`.
 
-#### Closing the page
+### Closing the page
 
 The `BrowserSession` object must be closed when finished. This will close the browser, update the response data, and merge new cookies with the session cookies.
 
@@ -885,7 +925,6 @@ Response data is updated:
 >>> resp.content: Union[bytes, str]
 '<!DOCTYPE html><html lang="en" dir="ltr"><head><meta name="theme-color" content="#4F4F4F"><meta name="description" content="Bing helps you turn inform...
 ```
-
 
 #### Other ways to create a Browser Session
 

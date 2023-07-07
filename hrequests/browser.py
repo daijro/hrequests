@@ -43,9 +43,12 @@ class BrowserSession:
         awaitNavigation(): Wait for the page navigation to finish
         awaitScript(script, arg): Wait for a script to return true
         awaitSelector(selector, arg): Wait for a selector to exist
+        awaitEnabled(selector, arg): Wait for a selector to be enabled
+        isVisible(selector): Check if a selector is visible
+        isEnabled(selector): Check if a selector is enabled
         awaitUrl(url, timeout): Wait for the URL to match
         dragTo(source, target, timeout, wait_after, check): Drag and drop a selector
-        type(selector, text): Type text into a selector
+        type(selector, text, delay, timeout): Type text into a selector
         click(selector, click_count, button, timeout, wait_after): Click a selector
         evaluate(script, arg): Evaluate and return a script
         screenshot(path, full_page): Take a screenshot of the page
@@ -240,6 +243,40 @@ class BrowserSession:
             arg=selector,
             timeout=int(timeout * 1e3),
         )
+    
+    async def _awaitEnabled(self, selector, *, timeout: float = 30):
+        '''
+        Wait for a selector to be enabled
+
+        Parameters:
+            selector (str): Selector to wait for
+            timeout (float, optional): Timeout in seconds. Defaults to 30.
+        '''
+        return await self.page.wait_for_function(
+            "selector => !document.querySelector(selector).disabled",
+            arg=selector,
+            timeout=int(timeout * 1e3),
+        )
+    
+    async def _isVisible(self, selector: str) -> bool:
+        '''
+        Check if a selector is visible
+
+        Parameters:
+            selector (str): Selector to check
+        '''
+        return await self.page.is_visible(selector)
+
+    async def _isEnabled(self, selector: str) -> bool:
+        '''
+        Check if a selector is enabled
+        
+        Parameters:
+            selector (str): Selector to check
+        '''
+        if not await self.page.is_visible(selector):
+            return False
+        return await self.page.evaluate("selector => !document.querySelector(selector).disabled", arg=selector)
 
     async def _awaitUrl(
         self, url: Union[str, Pattern[str], Callable[[str], bool]], *, timeout: float = 30
@@ -276,22 +313,24 @@ class BrowserSession:
             source, target, no_wait_after=not wait_after, timeout=int(timeout * 1e3), check=check
         )
 
-    async def _type(self, selector: str, text: str):
+    async def _type(self, selector: str, text: str, delay: int=50, *, timeout: float = 30):
         '''
         Type text into a selector
 
         Parameters:
             selector (str): CSS selector to type in
             text (str): Text to type
+            delay (int, optional): Delay between keypresses in ms. On mock_human, this is randomized by 50%. Defaults to 50.
+            timeout (float, optional): Timeout in seconds. Defaults to 30.
         '''
-        return await self.page.type(selector, text)
+        return await self.page.type(selector, text, delay=delay, timeout=int(timeout * 1e3))
 
     async def _click(
         self,
         selector: str,
         button: Optional[Literal['left', 'right', 'middle']] = 'left',
-        *,
         count: int = 1,
+        *,
         timeout: float = 30,
         wait_after: bool = True,
     ):

@@ -1,11 +1,9 @@
 from async_class import AsyncObject
+from hrequests.playwright_mock import Faker, ProxyManager, context
 from playwright.async_api import async_playwright
-from hrequests.playwright_mock import context, ProxyManager, Faker
-
 
 
 class PlaywrightMock(AsyncObject):
-    # patch of botright to use webkit instead of ff
     async def __ainit__(self, headless=False, scroll_into_view=True):
         # setting values
         self.scroll_into_view = scroll_into_view
@@ -39,16 +37,17 @@ class PlaywrightMock(AsyncObject):
         await self.main_browser.close()
         await self.playwright.stop()
 
-    async def new_context(self, browser_name: str, proxy=None, **launch_args):
+    async def new_context(self, browser_name: str, user_agent: str, proxy=None, **launch_args):
         # calling proxyManager and faker
         _proxy = await ProxyManager(self, proxy)
-        _faker = await Faker(self, _proxy, browser_name)
+        _faker = await Faker(self, _proxy, browser_name, user_agent)
         # create context with human emulation
         _browser = await context.new_context(
             self,
             _proxy,
             _faker,
             bypass_csp=True,
+            user_agent=user_agent,
             **launch_args
         )
         _browser.proxy = _proxy

@@ -23,7 +23,7 @@ async def new_page(inst, context, proxy, faker, **launch_arguments) -> "Playwrig
         faker.vendor,
         faker.renderer,
         faker.useragent,
-        "Win32"
+        "Win32",
     )
     # Setting the Language
     config.languages = ("en-US", "en", faker.locale, faker.language_code)
@@ -36,9 +36,13 @@ async def new_page(inst, context, proxy, faker, **launch_arguments) -> "Playwrig
 
 async def mock_keyboard(page) -> None:
     # KeyboardMocking
-    async def type_mocker(text, delay=200) -> None:
+    async def type_mocker(text, delay=50) -> None:
+        offset = delay // 2
         for char in text:
-            await page.keyboard._type(char, delay=random.randint(delay - 50, delay + 50))
+            # randomize the delay by 50% innacuracy
+            await page.keyboard._type(
+                char, delay=max(random.randint(delay - offset, delay + offset), 0)
+            )
         await page.wait_for_timeout(random.randint(4, 8) * 100)
 
     page.keyboard._type = page.keyboard.type
@@ -293,7 +297,7 @@ async def mock_page_objects(page) -> None:
     async def type_mocker(
         selector,
         text,
-        delay=200,
+        delay=50,
         no_wait_after=False,
         strict=False,
         timeout: typing.Optional[float] = None,
@@ -531,7 +535,7 @@ class Page:
         page,
         selector,
         text,
-        delay=200,
+        delay=50,
         no_wait_after=False,
         strict=False,
         timeout: typing.Optional[float] = None,

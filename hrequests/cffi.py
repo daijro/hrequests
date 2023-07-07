@@ -1,8 +1,9 @@
 import ctypes
 import os
+import re
 from platform import machine
 from sys import platform
-import re
+
 import wget
 from httpx import get
 from orjson import loads
