@@ -62,10 +62,6 @@ class TLSClient:
         # }
         self.proxies: dict = {}
 
-        # Dictionary of querystring data to attach to each request. The dictionary values may be lists for representing
-        # multivalued query parameters.
-        self.params: dict = {}
-
         # CookieJar containing all currently outstanding cookies set on this session
         self.cookies: RequestsCookieJar = RequestsCookieJar()
 
@@ -294,11 +290,11 @@ class TLSClient:
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
         if data is None and json is not None:
-            if type(json) in [dict, list]:
+            if type(json) in (dict, list):
                 json = dumps(json).decode('utf-8')
             request_body = json
             content_type = 'application/json'
-        elif data is not None and type(data) not in [str, bytes]:
+        elif data is not None and type(data) not in (str, bytes):
             request_body = urllib.parse.urlencode(data, doseq=True)
             content_type = 'application/x-www-form-urlencoded'
         else:

@@ -36,6 +36,22 @@ class TLSRequest:
                         Returns: ``Response``.
     '''
 
+    session_kwargs = {
+        'browser',
+        'version',
+        'headers',
+        'os',
+        'ja3_string',
+        'h2_settings',
+        'additional_decode',
+        'pseudo_header_order',
+        'priority_frames',
+        'header_order',
+        'force_http1',
+        'catch_panics',
+        'debug',
+    }
+
     def __init__(
         self,
         method: str,
@@ -45,25 +61,40 @@ class TLSRequest:
         **kwargs,
     ):
         # Request method
-        self.method = method
+        self.method: str = method
         # Raise exceptions (default FALSE for async, TRUE for sync)
-        self.raise_exception = raise_exception
+        self.raise_exception: bool = raise_exception
         # URL to request
-        self.url = url
-        # Create TLSSession if not provided
-        self._build_session(session)
+        self.url: str = url
+
+        # Session kwargs
+        self.sess_kwargs: dict | None = None
+        if kwargs:
+            sess_kwargs = set(kwargs.keys()) & TLSRequest.session_kwargs
+            if session and sess_kwargs:
+                # If session is already provided, raise TypeError if session-only kwargs are passed
+                raise TypeError(f'Cannot pass parameter(s) to an existing session: {sess_kwargs}')
+            else:
+                self.sess_kwargs = {k: kwargs.pop(k) for k in sess_kwargs}
 
         if callback := kwargs.pop('callback', None):
             kwargs['hooks'] = {'response': callback}
 
-        # The rest arguments for ``Session.request``
+        # The rest of the arguments for `Session.request`
         self.kwargs = kwargs
-        # Resulting ``Response``
+        # Resulting Response
         self.response = None
+        # Create TLSSession if not provided
+        self._build_session(session)
 
     def _build_session(self, session=None):
         if session is None:
-            self.session = hrequests.firefox.Session(temp=True)
+            if self.sess_kwargs:
+                # if session kwargs are passed, configure a new session with them
+                self.session = hrequests.Session(temp=True, **self.sess_kwargs)
+            else:
+                # else use a preconfigured session
+                self.session = hrequests.chrome.Session(temp=True)
             self._close = True
         else:
             # don't close adapters after each request if the user provided the session

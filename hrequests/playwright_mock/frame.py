@@ -7,38 +7,169 @@ def mock_frame(frame) -> None:
     if not frame:
         return
 
-    async def click_mocker(selector, button="left", click_count=1, strict=False, delay=20, force=False, modifiers=[], no_wait_after=False, position={}, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.click(frame, selector, button=button, click_count=click_count, strict=strict, delay=delay, force=force, modifiers=modifiers, no_wait_after=no_wait_after, position=position, timeout=timeout, trial=trial)
+    async def click_mocker(
+        selector,
+        button="left",
+        click_count=1,
+        strict=False,
+        delay=20,
+        force=False,
+        modifiers=[],
+        no_wait_after=False,
+        position={},
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.click(
+            frame,
+            selector,
+            button=button,
+            click_count=click_count,
+            strict=strict,
+            delay=delay,
+            force=force,
+            modifiers=modifiers,
+            no_wait_after=no_wait_after,
+            position=position,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.click = click_mocker
 
-    async def dblclick_mocker(selector, button="left", strict=False, delay=20, force=False, modifiers=[], no_wait_after=False, position={}, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.dblclick(frame, selector, button=button, strict=strict, delay=delay, force=force, modifiers=modifiers, no_wait_after=no_wait_after, position=position, timeout=timeout, trial=trial)
+    async def dblclick_mocker(
+        selector,
+        button="left",
+        strict=False,
+        delay=20,
+        force=False,
+        modifiers=[],
+        no_wait_after=False,
+        position={},
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.dblclick(
+            frame,
+            selector,
+            button=button,
+            strict=strict,
+            delay=delay,
+            force=force,
+            modifiers=modifiers,
+            no_wait_after=no_wait_after,
+            position=position,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.dblclick = dblclick_mocker
 
-    async def check_mocker(selector, force=False, no_wait_after=False, position={}, strict=False, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.check(frame, selector, force=force, no_wait_after=no_wait_after, position=position, strict=strict, timeout=timeout, trial=trial)
+    async def check_mocker(
+        selector,
+        force=False,
+        no_wait_after=False,
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.check(
+            frame,
+            selector,
+            force=force,
+            no_wait_after=no_wait_after,
+            position=position,
+            strict=strict,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.check = check_mocker
 
-    async def uncheck_mocker(selector, force=False, no_wait_after=False, position={}, strict=False, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.uncheck(frame, selector, force=force, no_wait_after=no_wait_after, position=position, strict=strict, timeout=timeout, trial=trial)
+    async def uncheck_mocker(
+        selector,
+        force=False,
+        no_wait_after=False,
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.uncheck(
+            frame,
+            selector,
+            force=force,
+            no_wait_after=no_wait_after,
+            position=position,
+            strict=strict,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.uncheck = uncheck_mocker
 
-    async def set_checked_mocker(selector, checked=False, force=False, no_wait_after=False, position={}, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.set_checked(frame, selector, checked=checked, force=force, no_wait_after=no_wait_after, position=position, timeout=timeout, trial=trial)
+    async def set_checked_mocker(
+        selector,
+        checked=False,
+        force=False,
+        no_wait_after=False,
+        position={},
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.set_checked(
+            frame,
+            selector,
+            checked=checked,
+            force=force,
+            no_wait_after=no_wait_after,
+            position=position,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.set_checked = set_checked_mocker
 
-    async def hover_mocker(selector, force=False, modifiers=[], position={}, strict=False, timeout: typing.Optional[float] = None, trial=False):
-        await Frame.hover(frame, selector, force=force, modifiers=modifiers, position=position, strict=strict, timeout=timeout, trial=trial)
+    async def hover_mocker(
+        selector,
+        force=False,
+        modifiers=[],
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ):
+        await Frame.hover(
+            frame,
+            selector,
+            force=force,
+            modifiers=modifiers,
+            position=position,
+            strict=strict,
+            timeout=timeout,
+            trial=trial,
+        )
 
     frame.hover = hover_mocker
 
-    async def type_mocker(selector, text, delay=200, no_wait_after=False, strict=False, timeout: typing.Optional[float] = None):
-        await Frame.type(frame, selector, text, delay=delay, no_wait_after=no_wait_after, strict=strict, timeout=timeout)
+    async def type_mocker(
+        selector,
+        text,
+        delay=200,
+        no_wait_after=False,
+        strict=False,
+        timeout: typing.Optional[float] = None,
+    ):
+        await Frame.type(
+            frame,
+            selector,
+            text,
+            delay=delay,
+            no_wait_after=no_wait_after,
+            strict=strict,
+            timeout=timeout,
+        )
 
     frame.type = type_mocker
 
@@ -64,8 +195,12 @@ def mock_frame(frame) -> None:
     frame._query_selector_all = frame.query_selector_all
     frame.query_selector_all = mock_query_selector_all
 
-    async def mock_wait_for_selector(selector, state=[], strict=False, timeout: typing.Optional[float] = None) -> typing.Optional["ElementHandle"]:
-        element = await frame.__wait_for_selector(selector, state=state, strict=strict, timeout=timeout)
+    async def mock_wait_for_selector(
+        selector, state=[], strict=False, timeout: typing.Optional[float] = None
+    ) -> typing.Optional["ElementHandle"]:
+        element = await frame.__wait_for_selector(
+            selector, state=state, strict=strict, timeout=timeout
+        )
         if element:
             await element_handle.mock_element_handle(element, frame.page)
         return element
@@ -106,8 +241,12 @@ def mock_frame(frame) -> None:
     frame._evaluate_handle = frame.evaluate_handle
     frame.evaluate_handle = mock_evaluate_handle
 
-    async def mock_wait_for_function(expression, arg=None, polling="raf", timeout: typing.Optional[float] = None) -> "JSHandle":
-        _js_handle = await frame._wait_for_function(expression, arg=arg, polling=polling, timeout=timeout)
+    async def mock_wait_for_function(
+        expression, arg=None, polling="raf", timeout: typing.Optional[float] = None
+    ) -> "JSHandle":
+        _js_handle = await frame._wait_for_function(
+            expression, arg=arg, polling=polling, timeout=timeout
+        )
         await js_handle.mock_js_handle(_js_handle, frame.page)
         return _js_handle
 
@@ -134,8 +273,23 @@ def mock_frame(frame) -> None:
 
 
 class Frame:
-    async def click(frame, selector, button="left", click_count=1, strict=False, delay=20, force=False, modifiers=[], no_wait_after=False, position={}, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def click(
+        frame,
+        selector,
+        button="left",
+        click_count=1,
+        strict=False,
+        delay=20,
+        force=False,
+        modifiers=[],
+        no_wait_after=False,
+        position={},
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -159,8 +313,22 @@ class Frame:
             for modifier in modifiers:
                 await frame.page.keyboard.up(modifier)
 
-    async def dblclick(frame, selector, button="left", strict=False, delay=20, force=False, modifiers=[], no_wait_after=False, position={}, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def dblclick(
+        frame,
+        selector,
+        button="left",
+        strict=False,
+        delay=20,
+        force=False,
+        modifiers=[],
+        no_wait_after=False,
+        position={},
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -184,8 +352,19 @@ class Frame:
             for modifier in modifiers:
                 await frame.page.keyboard.up(modifier)
 
-    async def check(frame, selector, force=False, no_wait_after=False, position={}, strict=False, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def check(
+        frame,
+        selector,
+        force=False,
+        no_wait_after=False,
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -208,8 +387,19 @@ class Frame:
 
             assert await element.is_checked()
 
-    async def uncheck(frame, selector, force=False, no_wait_after=False, position={}, strict=False, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def uncheck(
+        frame,
+        selector,
+        force=False,
+        no_wait_after=False,
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -232,8 +422,20 @@ class Frame:
 
             assert not await element.is_checked()
 
-    async def set_checked(frame, selector, checked=False, force=False, no_wait_after=False, position={}, strict=False, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def set_checked(
+        frame,
+        selector,
+        checked=False,
+        force=False,
+        no_wait_after=False,
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -256,8 +458,19 @@ class Frame:
 
             assert await element.is_checked()
 
-    async def hover(frame, selector, force=False, modifiers=[], position={}, strict=False, timeout: typing.Optional[float] = None, trial=False) -> None:
-        element = await frame.wait_for_selector(selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout)
+    async def hover(
+        frame,
+        selector,
+        force=False,
+        modifiers=[],
+        position={},
+        strict=False,
+        timeout: typing.Optional[float] = None,
+        trial=False,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible" if not force else "hidden", strict=strict, timeout=timeout
+        )
 
         if not force:
             await element.wait_for_element_state("editable", timeout=timeout)
@@ -281,8 +494,18 @@ class Frame:
             for modifier in modifiers:
                 await frame.page.keyboard.up(modifier)
 
-    async def type(frame, selector, text, delay=200, no_wait_after=False, strict=False, timeout: typing.Optional[float] = None) -> None:
-        element = await frame.wait_for_selector(selector, state="visible", strict=strict, timeout=timeout)
+    async def type(
+        frame,
+        selector,
+        text,
+        delay=200,
+        no_wait_after=False,
+        strict=False,
+        timeout: typing.Optional[float] = None,
+    ) -> None:
+        element = await frame.wait_for_selector(
+            selector, state="visible", strict=strict, timeout=timeout
+        )
 
         await element.wait_for_element_state("editable", timeout=timeout)
 

@@ -46,7 +46,7 @@ class Faker(AsyncObject):
     async def locale(self, proxy) -> None:
         with open(join(dirname(__file__), "locale.json"), "r") as f:
             language_dict = json.load(f)
-            
+
         country_code = proxy.country_code
 
         if country_code in language_dict:

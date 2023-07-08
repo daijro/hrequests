@@ -85,19 +85,15 @@ class BrowserSession:
         self.session: Optional[hrequests.session.TLSSession] = session
         self.resp: Optional[hrequests.response.Response] = resp
         # generating headers
-        if browser or os:
-            # if a browser or os was provided, generate a user-agent and IGNORE session/resp headers
-            # only meant to be used when using BrowserSession as a standalone
-            self.browser: str = browser or choice(('firefox', 'chrome', 'opera'))
-            self.ua: str = Headers(browser=self.browser, os=os).generate()['User-Agent']
-        elif session:
+        if session:
             # if a session was provided, use the session user-agent
             self.browser: str = session.browser
             self.ua: str = session.headers.get('User-Agent')
         else:
-            # else if nothing else was provided, generate a firefox user-agent
-            self.browser: str = 'firefox'
-            self.ua: str = Headers(browser='firefox').generate()['User-Agent']
+            # if a browser or os was provided, generate a user-agent and IGNORE session/resp headers
+            # only meant to be used when using BrowserSession as a standalone
+            self.browser: str = browser or choice(('firefox', 'chrome', 'opera'))
+            self.ua: str = Headers(browser=self.browser, os=os).generate()['User-Agent']
         # proxy variables
         self.proxy_ip: Optional[str] = proxy_ip
         # browser config
@@ -243,7 +239,7 @@ class BrowserSession:
             arg=selector,
             timeout=int(timeout * 1e3),
         )
-    
+
     async def _awaitEnabled(self, selector, *, timeout: float = 30):
         '''
         Wait for a selector to be enabled
@@ -257,7 +253,7 @@ class BrowserSession:
             arg=selector,
             timeout=int(timeout * 1e3),
         )
-    
+
     async def _isVisible(self, selector: str) -> bool:
         '''
         Check if a selector is visible
@@ -270,13 +266,15 @@ class BrowserSession:
     async def _isEnabled(self, selector: str) -> bool:
         '''
         Check if a selector is enabled
-        
+
         Parameters:
             selector (str): Selector to check
         '''
         if not await self.page.is_visible(selector):
             return False
-        return await self.page.evaluate("selector => !document.querySelector(selector).disabled", arg=selector)
+        return await self.page.evaluate(
+            "selector => !document.querySelector(selector).disabled", arg=selector
+        )
 
     async def _awaitUrl(
         self, url: Union[str, Pattern[str], Callable[[str], bool]], *, timeout: float = 30
@@ -313,7 +311,7 @@ class BrowserSession:
             source, target, no_wait_after=not wait_after, timeout=int(timeout * 1e3), check=check
         )
 
-    async def _type(self, selector: str, text: str, delay: int=50, *, timeout: float = 30):
+    async def _type(self, selector: str, text: str, delay: int = 50, *, timeout: float = 30):
         '''
         Type text into a selector
 

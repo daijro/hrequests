@@ -71,7 +71,7 @@ Here is an example of a simple `get` request:
 >>> resp = hrequests.get('https://www.google.com/')
 ```
 
-Requests are sent through [bogdanfinn's tls-client](https://github.com/bogdanfinn/tls-client) to spoof the TLS Client Fingerprint. This is done automatically, and is completely transparent to the user.
+Requests are sent through [bogdanfinn's tls-client](https://github.com/bogdanfinn/tls-client) to spoof the TLS client fingerprint. This is done automatically, and is completely transparent to the user.
 
 Other request methods include `post`, `put`, `delete`, `head`, `options`, and `patch`.
 
@@ -82,7 +82,6 @@ The `Response` object is a near 1:1 replica of the `requests.Response` object, w
 
 ```
 Parameters:
-    method (str): Method of request (GET, POST, OPTIONS, HEAD, PUT, PATCH, DELETE)
     url (str): URL to send request to
     params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
     data (Union[str, dict], optional): Data to send to request. Defaults to None.
@@ -95,6 +94,7 @@ Parameters:
     timeout (int, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
     no_pause (bool, optional): Run the request in the background. Defaults to False.
+    <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
     hrequests.response.Response: Response object
@@ -169,17 +169,8 @@ Get the response headers:
 Creating a new Firefox Session object:
 
 ```py
->>> session = hrequests.Session()
-```
-
-Or other browsers:
-
-"`os`" can be `'win'`, `'mac'`, `'lin'`, or `'random'`. Default is `'random'`.
-
-```py
->>> session = hrequests.firefox.Session(os='win')
->>> session = hrequests.chrome.Session(os='lin')
->>> session = hrequests.opera.Session(os='mac')
+>>> session = hrequests.Session()  # version randomized by default
+>>> session = hrequests.Session('firefox', version=110)
 ```
 
 <details>
@@ -187,8 +178,9 @@ Or other browsers:
 
 ```
 Parameters:
-    browser (str): Browser to use [firefox, chrome, opera]
-    os (str): OS to use in header [win, mac, lin]
+    browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'firefox'.
+    version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
+    os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     ja3_string (str, optional): JA3 string. Defaults to None.
@@ -203,12 +195,56 @@ Parameters:
 ```
 </details>
 
-This will automatically generate headers based on the browser name and OS.
+Browsers can also be created through the `firefox`, `chrome`, and `opera` shortcuts:
+
+```py
+>>> session = hrequests.firefox.Session()
+>>> session = hrequests.chrome.Session()
+>>> session = hrequests.opera.Session()
+```
+
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
+    os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
+    headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
+    verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
+    ja3_string (str, optional): JA3 string. Defaults to None.
+    h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
+    additional_decode (str, optional): Additional decode. Defaults to None.
+    pseudo_header_order (list, optional): Pseudo header order. Defaults to None.
+    priority_frames (list, optional): Priority frames. Defaults to None.
+    header_order (list, optional): Header order. Defaults to None.
+    force_http1 (bool, optional): Force HTTP/1. Defaults to False.
+    catch_panics (bool, optional): Catch panics. Defaults to False.
+    debug (bool, optional): Debug mode. Defaults to False.
+```
+</details>
+
+`os` can be `'win'`, `'mac'`, or `'lin'`. Default is randomized.
+
+```py
+>>> session = hrequests.firefox.Session(os='mac')
+```
+
+This will automatically generate headers based on the browser name and OS:
 
 ```py
 >>> session.headers
-{'Accept': '*/*', 'Connection': 'keep-alive', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5; rv:52.8.0) Gecko/20100101 Firefox/52.8.0', 'Accept-Encoding': 'gzip, deflate, br', 'Cache-Control': 'max-age=0', 'DNT': '1'}
+{'Accept': '*/*', 'Connection': 'keep-alive', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4; rv:60.2.2) Gecko/20100101 Firefox/60.2.2', 'Accept-Encoding': 'gzip, deflate, br', 'Pragma': 'no-cache'}
 ```
+
+<details>
+<summary>Why is the browser version in the header different than the TLS browser version?</summary>
+
+Website bot detection systems typically do not correlate the TLS fingerprint browser version with the browser header.
+
+By adding more randomization to our headers, we can make our requests appear to be coming from a larger number of clients. We can make it seem like our requests are coming from a larger number of clients. This makes it harder for websites to identify and block our requests based on a consistent browser version.
+
+</details>
 
 
 ### Properties
@@ -226,20 +262,15 @@ Session cookies update with each request:
 <RequestsCookieJar[Cookie(version=0, name='1P_JAR', value='2023-07-05-20', port=None, port_specified=False, domain='.google.com', domain_specified=True...
 ```
 
-Get headers:
-
-```py
->>> session.headers: CaseInsensitiveDict
-{'Accept': '*/*', 'Connection': 'keep-alive', 'User-Agent': 'Mozilla/5.0 (Windows NT 6.0; WOW64; rv:52.7.0) Gecko/20100101 Firefox/52.7.0', 'Accept-Encoding': 'gzip, deflate, br', 'Upgrade-Insecure-Requests': '1', 'Referer': 'https://google.com', 'Pragma': 'no-cache'}
-```
-
 Regenerate headers for a different OS:
 
 ```py
->>> session.resetHeaders(os='mac')
->>> session.headers
-{'Accept': '*/*', 'Connection': 'keep-alive', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5; rv:52.8.0) Gecko/20100101 Firefox/52.8.0', 'Accept-Encoding': 'gzip, deflate, br', 'Cache-Control': 'max-age=0', 'DNT': '1'}
+>>> session.os = 'win'
+>>> session.headers: CaseInsensitiveDict
+{'Accept': '*/*', 'Connection': 'keep-alive', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0.3) Gecko/20100101 Firefox/66.0.3', 'Accept-Encoding': 'gzip, deflate, br', 'Accept-Language': 'en-US;q=0.5,en;q=0.3', 'Cache-Control': 'max-age=0', 'DNT': '1', 'Upgrade-Insecure-Requests': '1', 'Pragma': 'no-cache'}
 ```
+
+### Closing Sessions
 
 Sessions can also be closed to free memory:
 
@@ -247,7 +278,7 @@ Sessions can also be closed to free memory:
 >>> session.close()
 ```
 
-Additionally, sessions can be used as context managers:
+Alternatively, sessions can be used as context managers:
 
 ```py
 with hrequests.Session() as session:
@@ -289,7 +320,6 @@ The method `async_get` will create an unsent request.
 
 ```
 Parameters:
-    method (str): Method of request (GET, POST, OPTIONS, HEAD, PUT, PATCH, DELETE)
     url (str): URL to send request to
     params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
     data (Union[str, dict], optional): Data to send to request. Defaults to None.
@@ -301,6 +331,7 @@ Parameters:
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (int, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
+    <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
     hrequests.response.Response: Response object

@@ -83,12 +83,12 @@ class ProxyManager(AsyncObject):
 
     async def check_proxy(self) -> None:
         try:
-            ip_request = await self.phttpx.get("https://api.ipify.org?format=json", timeout=self.timeout)
+            ip_request = await self.phttpx.get(
+                "https://api.ipify.org?format=json", timeout=self.timeout
+            )
             ip = ip_request.json().get("ip")
         except Exception:
-            raise ProxyCheckError(
-                "Could not get IP-Address of Proxy (Proxy is Invalid/Timed Out)"
-            )
+            raise ProxyCheckError("Could not get IP-Address of Proxy (Proxy is Invalid/Timed Out)")
         try:
             r = await self.httpx.get(f"http://ip-api.com/json/{ip}", timeout=self.timeout)
             data = r.json()

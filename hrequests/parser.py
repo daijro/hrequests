@@ -1,5 +1,5 @@
 import contextlib
-from typing import List, MutableMapping, Set, Union
+from typing import List, MutableMapping, Optional, Set, Union
 from urllib.parse import urljoin, urlparse, urlunparse
 
 import lxml
@@ -437,10 +437,7 @@ class HTML(BaseParser):
     def __init__(
         self,
         *,
-        session: Union[
-            hrequests.session.TLSSession,
-            hrequests.browser.BrowserSession
-        ] = None,
+        session: Optional[Union[hrequests.session.TLSSession, hrequests.browser.BrowserSession]] = None,
         url: str = DEFAULT_URL,
         html: _HTML,
         default_encoding: str = DEFAULT_ENCODING,

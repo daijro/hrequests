@@ -93,7 +93,7 @@ class Response:
     cookies: RequestsCookieJar
     _text: Optional[str] = None
     _content: Optional[Union[str, bytes]] = None
-    
+
     # set by ProcessResponse
     history: Optional[List['Response']] = None
     session: Optional[

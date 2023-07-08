@@ -1,6 +1,6 @@
 from functools import partial
 from random import choice as rchoice
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Tuple, Union
 
 from fake_headers import Headers
 
@@ -20,7 +20,7 @@ class TLSSession(TLSClient):
     Args:
         browser (str): Browser to use [firefox, chrome, opera]
         client_identifier (str): Identifier for the client
-        os (str): OS to use in header [win, mac, lin]
+        os (Literal['win', 'mac', 'lin'], optional): OS to use in header [win, mac, lin]
         headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
         temp (bool, optional): Indicates if session is temporary. Defaults to False.
         verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
@@ -33,35 +33,36 @@ class TLSSession(TLSClient):
         force_http1 (bool, optional): Force HTTP/1. Defaults to False.
         catch_panics (bool, optional): Catch panics. Defaults to False.
         debug (bool, optional): Debug mode. Defaults to False.
-    
+
     Methods:
-        get(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        get(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a GET request
-        post(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        post(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a POST request
-        options(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        options(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a OPTIONS request
-        head(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        head(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a HEAD request
-        put(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        put(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a PUT request
-        patch(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        patch(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a PATCH request
-        delete(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None): 
+        delete(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a DELETE request
-        render(url, headless, proxy, response, mock_human): 
+        render(url, headless, proxy, response, mock_human):
             Render a page with playwright
     """
+
     def __init__(
         self,
-        browser: str,
         client_identifier: str,
-        os: str,
+        browser: Literal['firefox', 'chrome', 'opera'],
+        os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
         temp: bool = False,
         verify: bool = True,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(client_identifier=client_identifier, *args, **kwargs)
 
@@ -73,7 +74,7 @@ class TLSSession(TLSClient):
         self.put: partial = partial(put, session=self)
         self.patch: partial = partial(patch, session=self)
         self.delete: partial = partial(delete, session=self)
-        
+
         # async network methods
         self.async_get: partial = partial(async_get, session=self)
         self.async_post: partial = partial(async_post, session=self)
@@ -82,14 +83,14 @@ class TLSSession(TLSClient):
         self.async_put: partial = partial(async_put, session=self)
         self.async_patch: partial = partial(async_patch, session=self)
         self.async_delete: partial = partial(async_delete, session=self)
-        
+
         # shortcut to render method
         self.render: partial = partial(hrequests.browser.render, session=self)
 
         self.temp: bool = temp  # indicate if session is temporary
         self._closed: bool = False  # indicate if session is closed
         self.browser: str = browser  # browser name
-        self.os: str = os  # os name
+        self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
 
         # set headers
@@ -100,17 +101,27 @@ class TLSSession(TLSClient):
 
     def resetHeaders(
         self,
-        os: Optional[Literal['random', 'win', 'mac', 'lin']] = None,
+        os: Optional[Literal['win', 'mac', 'lin']] = None,
     ):
         """
         Rotates the headers of the session
         "OS" can be one of the following:
-          'random', 'win', 'mac', 'lin'
+          ['win', 'mac', 'lin']
         Default is what it was initialized with, or the last value set
         """
         if os:
-            self.os = os
-        self.headers = Headers(browser=self.browser, os=os or self.os, headers=True).generate()
+            self._os = os
+        self.headers = Headers(browser=self.browser, os=self._os, headers=True).generate()
+
+    @property
+    def os(self) -> str:
+        return self._os
+
+    @os.setter
+    def os(self, os: Literal['win', 'mac', 'lin']):
+        if os not in _os_set:
+            raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
+        self.resetHeaders(os=os)
 
     def request(
         self,
@@ -167,15 +178,15 @@ class TLSSession(TLSClient):
         )
         proc.send()
         return proc.response
-    
+
     def close(self):
         if not self._closed:
             self._closed = True
             freeMemory(self._session_id.encode('utf-8'))
-    
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, *_):
         self.close()
 
@@ -187,59 +198,89 @@ class Session(TLSSession):
     def __init__(
         self,
         browser: Literal['firefox', 'chrome', 'opera'] = 'firefox',
-        client_identifier: Optional[str] = None,
-        os: Literal['random', 'win', 'mac', 'lin'] = 'random',
+        version: Optional[int] = None,
+        os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
+        '''
+        Parameters:
+            browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'firefox'.
+            version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
+            os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
+            headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
+            verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
+            ja3_string (str, optional): JA3 string. Defaults to None.
+            h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
+            additional_decode (str, optional): Additional decode. Defaults to None.
+            pseudo_header_order (list, optional): Pseudo header order. Defaults to None.
+            priority_frames (list, optional): Priority frames. Defaults to None.
+            header_order (list, optional): Header order. Defaults to None.
+            force_http1 (bool, optional): Force HTTP/1. Defaults to False.
+            catch_panics (bool, optional): Catch panics. Defaults to False.
+            debug (bool, optional): Debug mode. Defaults to False.
+        '''
+        # random version if not specified
+        if not version:
+            version = _browsers[browser].version
+        # if version is specified, check if it is supported
+        elif version not in _browsers[browser].versions:
+            raise ValueError(
+                f'`{version}` is not a supported {browser} version: {_browsers[browser].versions}'
+            )
+        self.version = version
+
         super().__init__(
-            client_identifier=client_identifier or firefox.tls,
+            client_identifier=f'{browser}_{version}',
             browser=browser,
             headers=headers,
             os=os,
             *args,
-            **kwargs
+            **kwargs,
         )
 
 
 class SessionShortcut:
     name: str
-    tls_clients: tuple
-    
+    versions: Tuple[int]
+
     @classmethod
     @property
-    def tls(cls) -> str:
-        return rchoice(cls.tls_clients)
-    
+    def version(cls) -> int:
+        return rchoice(cls.versions)
+
     @classmethod
-    def Session(cls, os='random', *args, **kwargs) -> Session:
+    def Session(
+        cls,
+        version: Optional[int] = None,
+        os: Optional[Literal['win', 'mac', 'lin']] = None,
+        *args,
+        **kwargs,
+    ) -> Session:
         return Session(
-            browser=cls.name, client_identifier=cls.tls, os=os, *args, **kwargs
+            browser=cls.name,
+            version=version or cls.version,
+            os=os,
+            *args,
+            **kwargs,
         )
 
 
 class firefox(SessionShortcut):
     name: str = 'firefox'
-    tls_clients: tuple = ('firefox_102', 'firefox_104', 'firefox108', 'firefox110')
+    versions: Tuple[int] = (102, 104, 105, 106, 108, 110)
 
 
 class chrome(SessionShortcut):
     name: str = 'chrome'
-    tls_clients: tuple = (
-        'chrome_103',
-        'chrome_104',
-        'chrome_105',
-        'chrome_106',
-        'chrome_107',
-        'chrome_108',
-        'chrome109',
-        'chrome110',
-        'chrome111',
-        'chrome112',
-    )
+    versions: Tuple[int] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112)
 
 
 class opera(SessionShortcut):
     name: str = 'opera'
-    tls_clients: tuple = ('opera_89', 'opera_90')
+    versions: Tuple[int] = (89, 90)
+
+
+_browsers = {'firefox': firefox, 'chrome': chrome, 'opera': opera}
+_os_set = {'win', 'mac', 'lin'}
