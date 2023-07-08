@@ -10,7 +10,7 @@
         <img src="https://img.shields.io/github/license/daijro/hrequests.svg">
     </a>
     <a href="https://python.org/">
-        <img src="https://img.shields.io/badge/python-3.6&#8208;3.10-blue">
+        <img src="https://img.shields.io/badge/python-3.6&#8208;3.11-blue">
     </a>
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
@@ -22,18 +22,33 @@
         <img src="https://img.shields.io/badge/imports-isort-yellow.svg">
     </a>
 </p>
-    Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library.
+    Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library. 
 </h4>
 
-- TLS client fingerprinting 🚀
-- Javascript rendering 🚀
-- Human-like browsing emulation 🚀
-- Fast built-in HTML parsing 🚀
-- Asynchronous requests with gevent *(without monkey-paching!)* 🚀
-- Realistic browser header spoofing 🚀
+### ✨ Features
+
+- Seamless transition between HTTP and headless browsing 💻
+- Integrated fast HTML parser 🚀
+- High performance concurrency with gevent (*without monkey-patching!*)  🚀
+- Replication of browser TLS fingerprints 🚀
+- JavaScript rendering 🚀
 - Supports HTTP/2 🚀
-- High performance 🚀
-- 100% thread-safe 🚀
+- Realistic browser header generation 🚀
+- JSON serializing up to 10x faster than the standard library 🚀
+
+### 💻 Browser crawling
+
+- Simple & uncomplicated browser automation
+- Human-like cursor movement and typing
+- Full page screenshots
+- Headless and headful support
+- No CORS restrictions
+
+### ⚡ More
+- High performance ✨
+- Minimal dependence on the python standard libraries
+- Written with type safety
+- 100% threadsafe ❤️
 
 ---
 
@@ -43,6 +58,7 @@ Install via pip:
 
 ```bash
 pip install hrequests
+playwright install
 ```
 
 Other depedencies will be downloaded on the first import:
@@ -59,7 +75,7 @@ Other depedencies will be downloaded on the first import:
 2. [Sessions](https://github.com/daijro/hrequests#sessions)
 3. [Concurrent & Lazy Requests](https://github.com/daijro/hrequests#concurrent--lazy-requests)
 4. [HTML Parsing](https://github.com/daijro/hrequests#html-parsing)
-5. [Page Rendering](https://github.com/daijro/hrequests#page-rendering)
+5. [Browser Automation](https://github.com/daijro/hrequests#browser-automation)
 
 <hr width=50>
 
@@ -606,14 +622,24 @@ Search for links within an element:
 
 <hr width=50>
 
-## Page Rendering
+## Browser Automation
 
-The `.render()` method returns a `BrowserSession` object. This will render the contents of the request in a browser. Once the context manager is exited, the browser will close and the session data will be updated.
 
-Although the backend uses Playwright, `BrowserSession` is still entirely safe to use across threads.
+You can spawn a `BrowserSession` instance by calling it:
+
+```py
+>>> page = hrequests.BrowserSession()  # headless=True by default
+```
+
+`BrowserSession` is entirely safe to use across threads.
+
+### Render an existing Response
+
+Responses have a `.render()` method. This will render the contents of the response in a browser page.
+
+Once the page is closed, the Response content and the Response's session cookies will be updated.
 
 **Example - submitting a login form:**
-
 
 ```py
 >>> resp = session.get('https://www.somewebsite.com/')
@@ -621,7 +647,7 @@ Although the backend uses Playwright, `BrowserSession` is still entirely safe to
 ...     page.type('.input#username', 'myuser')
 ...     page.type('.input#password', 'p4ssw0rd')
 ...     page.click('#submit')
-# session & resp now have updated cookies, content, etc.
+# `session` & `resp` now have updated cookies, content, etc.
 ```
 
 <details>
@@ -639,6 +665,7 @@ Although the backend uses Playwright, `BrowserSession` is still entirely safe to
 
 </details>
 
+The `mock_human` parameter will emulate human-like behavior. This includes easing and randomizing mouse movements, and randomizing typing speed. This functionality is based on [botright](https://github.com/Vinyzu/botright/).
 
 <details>
 <summary>Parameters</summary>
@@ -650,8 +677,6 @@ Parameters:
     allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
 ```
 </details>
-
-The `mock_human` parameter will emulate human-like behavior. This includes easing mouse movements, randomizing typing speed, and randomizing mouse movements. This functionality is based on [botright](https://github.com/Vinyzu/botright/).
 
 ### Properties
 
@@ -959,27 +984,18 @@ Response data is updated:
 
 #### Other ways to create a Browser Session
 
-If you don't want to use the data from an existing response, you can also create a `BrowserSession` object directly from a `Session`:
+You can use `.render` to spawn a `BrowserSession` object directly from a url:
 
 ```py
->>> # render a url using cookies and headers from a session object:
->>> page1 = session.render('https://google.com')
-```
-
-Or without a session at all:
-```py
->>> # render a url without a session:
->>> page2 = hrequests.render('https://google.com')
->>> # or just call BrowserSession directly:
->>> page3 = hrequests.BrowserSession()
->>> page3.url = 'https://google.com'
+# Using a Session:
+>>> page = session.render('https://google.com')
+# Or without a session at all:
+>>> page = hrequests.render('https://google.com')
 ```
 
 Make sure to close all `BrowserSession` objects when done!
 ```py
->>> page1.close()
->>> page2.close()
->>> page3.close()
+>>> page.close()
 ```
 
 ---
