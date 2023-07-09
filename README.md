@@ -517,7 +517,7 @@ programming
 Select an element using a CSS Selector:
 
 ```py
->>> about = resp.html.find('#about', first=True)
+>>> about = resp.html.find('#about')
 ```
 <details>
 <summary>Parameters</summary>
@@ -608,8 +608,10 @@ Get an Element's raw HTML:
 Select Elements within Elements:
 
 ```py
->>> about.find('a')
+>>> about.find_all('a')
 [<Element 'a' href='/about/' title='' class=''>, <Element 'a' href='/about/apps/' title=''>, <Element 'a' href='/about/quotes/' title=''>, <Element 'a' href='/about/gettingstarted/' title=''>, <Element 'a' href='/about/help/' title=''>, <Element 'a' href='http://brochure.getpython.info/' title=''>]
+>>> about.find('a')
+<Element 'a' href='/about/' title='' class=''>
 ```
 
 Search for links within an element:
@@ -714,8 +716,10 @@ b'<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="e
 Parsing HTML from the page content:
 
 ```py
->>> page.html.find('a')
+>>> page.html.find_all('a')
 [<Element 'a' href='/about/' title='' class=''>, <Element 'a' href='/about/apps/' title=''>, ...]
+>>> page.html.find('a')
+<Element 'a' href='/about/' title='' class=''>, <Element 'a' href='/about/apps/' title=''>
 ```
 
 Take a screenshot of the page:
@@ -752,6 +756,8 @@ Navigate through page history:
 Click an element:
 ```py
 >>> page.click('#my-button')
+# or through the html parser
+>>> page.html.find('#my-button').click()
 ```
 <details>
 <summary>Parameters</summary>
@@ -769,6 +775,8 @@ Parameters:
 Type text into an element:
 ```py
 >>> page.type('#my-input', 'Hello world!')
+# or through the html parser
+>>> page.html.find('#my-input').type('Hello world!')
 ```
 <details>
 <summary>Parameters</summary>
@@ -785,6 +793,8 @@ Parameters:
 Drag and drop an element:
 ```py
 >>> page.dragTo('#source-selector', '#target-selector')
+# or through the html parser
+>>> page.html.find('#source-selector').dragTo('#target-selector')
 ```
 <details>
 <summary>Parameters</summary>

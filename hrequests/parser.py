@@ -1,4 +1,7 @@
 import contextlib
+import re
+import weakref
+from functools import partial
 from typing import List, MutableMapping, Optional, Set, Union
 from urllib.parse import urljoin, urlparse, urlunparse
 
@@ -14,6 +17,7 @@ from pyquery import PyQuery
 from w3lib.encoding import html_to_unicode
 
 import hrequests
+from hrequests.exceptions import NotRenderedException
 
 """
 Based off https://github.com/psf/requests-html/blob/master/requests_html.py
@@ -54,7 +58,13 @@ class BaseParser:
     """
 
     def __init__(
-        self, *, element, default_encoding: str = None, html: _HTML = None, url: str
+        self,
+        *,
+        element,
+        default_encoding: str = None,
+        html: _HTML = None,
+        url: str,
+        br_session: Optional[weakref.CallableProxyType] = None,
     ) -> None:
         self.element = element
         self.url = url
@@ -64,10 +74,36 @@ class BaseParser:
         self._html = html.encode(DEFAULT_ENCODING) if isinstance(html, str) else html
         self._lxml = None
         self._pq = None
+        self.br_session = br_session
 
         self.cleaner = Cleaner()
         self.cleaner.javascript = True
         self.cleaner.style = True
+
+    # BrowserSession methods that accept a `selector` parameter
+    pass_to_session = {
+        'awaitSelector',
+        'awaitEnabled',
+        'isVisible',
+        'isEnabled',
+        'dragTo',
+        'type',
+        'click',
+    }
+
+    def __getattr__(self, name):
+        if name not in self.pass_to_session:
+            return
+        # pass through to session if it exists
+        if self.br_session is None:
+            raise NotRenderedException(f'Method {name} only allowed in BrowserSession')
+        return partial(getattr(self.br_session, name), self.css_path)
+
+    @property
+    def css_path(self) -> str:
+        # returns css selector of the element
+        xpath = self.element.getroottree().getelementpath(self.element)
+        return re.sub(r'\[(\d+)\]', r':nth-of-type(\1)', ' > '.join(xpath.strip('/').split('/')))
 
     @property
     def raw_html(self) -> bytes:
@@ -166,7 +202,7 @@ class BaseParser:
         """
         return self.lxml.text_content()
 
-    def find(
+    def find_all(
         self,
         selector: str = "*",
         *,
@@ -207,7 +243,9 @@ class BaseParser:
 
         encoding = _encoding or self.encoding
         elements = [
-            Element(element=found, url=self.url, default_encoding=encoding)
+            Element(
+                element=found, url=self.url, default_encoding=encoding, br_session=self.br_session
+            )
             for found in self.pq(selector)
         ]
 
@@ -230,6 +268,19 @@ class BaseParser:
                 elements.append(element)
 
         return _get_first_or_list(elements, first)
+
+    def find(
+        self,
+        selector: str = "*",
+        *,
+        containing: _Containing = None,
+        clean: bool = False,
+        _encoding: str = None,
+    ) -> _Find:
+        # Wrapper around find_all with first=True.
+        return self.find_all(
+            selector=selector, containing=containing, clean=clean, first=True, _encoding=_encoding
+        )
 
     def xpath(
         self, selector: str, *, clean: bool = False, first: bool = False, _encoding: str = None
@@ -257,7 +308,10 @@ class BaseParser:
             str(selection)
             if isinstance(selection, etree._ElementUnicodeResult)
             else Element(
-                element=selection, url=self.url, default_encoding=_encoding or self.encoding
+                element=selection,
+                url=self.url,
+                default_encoding=_encoding or self.encoding,
+                br_session=self.br_session,
             )
             for selection in selected
         ]
@@ -302,7 +356,7 @@ class BaseParser:
         """All found links on page, in as-is form."""
 
         def gen():
-            for link in self.find('a'):
+            for link in self.find_all('a'):
                 with contextlib.suppress(KeyError):
                     href = link.attrs['href'].strip()
                     if (
@@ -354,7 +408,7 @@ class BaseParser:
         The base URL for the page. Supports the ``<base>`` tag
         (`learn more <https://www.w3schools.com/tags/tag_base.asp>`_)."""
 
-        if base := self.find('base', first=True):
+        if base := self.find_all('base', first=True):
             if result := base.attrs.get('href', '').strip():
                 return result
 
@@ -394,8 +448,17 @@ class Element(BaseParser):
         'session',
     ]
 
-    def __init__(self, *, element, url: str, default_encoding: str = None) -> None:
-        super(Element, self).__init__(element=element, url=url, default_encoding=default_encoding)
+    def __init__(
+        self,
+        *,
+        element,
+        url: str,
+        default_encoding: str = None,
+        br_session: Optional[weakref.CallableProxyType] = None,
+    ) -> None:
+        super(Element, self).__init__(
+            element=element, url=url, default_encoding=default_encoding, br_session=br_session
+        )
         self.element = element
         self.tag = element.tag
         self.lineno = element.sourceline
@@ -437,7 +500,9 @@ class HTML(BaseParser):
     def __init__(
         self,
         *,
-        session: Optional[Union[hrequests.session.TLSSession, hrequests.browser.BrowserSession]] = None,
+        session: Optional[
+            Union[hrequests.session.TLSSession, hrequests.browser.BrowserSession]
+        ] = None,
         url: str = DEFAULT_URL,
         html: _HTML,
         default_encoding: str = DEFAULT_ENCODING,
@@ -452,6 +517,9 @@ class HTML(BaseParser):
             html=html,
             url=url,
             default_encoding=default_encoding,
+            br_session=weakref.proxy(session)
+            if isinstance(session, hrequests.browser.BrowserSession)
+            else None,
         )
         self.session = session or hrequests.firefox.Session(temp=True)
         self.page = None
@@ -470,7 +538,7 @@ class HTML(BaseParser):
             next_symbol = DEFAULT_NEXT_SYMBOL
 
         def get_next():
-            candidates = self.find('a', containing=next_symbol)
+            candidates = self.find_all('a', containing=next_symbol)
 
             for candidate in candidates:
                 if candidate.attrs.get('href'):
