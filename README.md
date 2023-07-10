@@ -15,6 +15,9 @@
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
     </a>
+    <a href="https://pepy.tech/project/hrequests">
+        <img alt="PyPI" src="https://pepy.tech/badge/hrequests">
+    </a>
     <a href="https://github.com/ambv/black">
         <img src="https://img.shields.io/badge/code%20style-black-black.svg">
     </a>
@@ -741,8 +744,9 @@ Parameters:
 Navigate to a url:
 
 ```py
->>> page.url = 'https://bing.com'  # navigate to a url
->>> page.goto('https://bing.com')  # or use goto
+>>> page.url = 'https://bing.com'
+# or use goto
+>>> page.goto('https://bing.com')
 ```
 
 Navigate through page history:
