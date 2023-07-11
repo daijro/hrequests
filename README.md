@@ -102,9 +102,10 @@ The `Response` object is a near 1:1 replica of the `requests.Response` object, w
 ```
 Parameters:
     url (str): URL to send request to
-    params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
-    data (Union[str, dict], optional): Data to send to request. Defaults to None.
+    data (Union[str, bytes, bytearray, dict], optional): Data to send to request. Defaults to None.
+    files (Dict[str, Union[BufferedReader, tuple]], optional): Data to send to request. Defaults to None.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
+    params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
     cookies (Union[RequestsCookieJar, dict, list], optional): Dict or CookieJar to send. Defaults to None.
     json (dict, optional): Json to send in the request body. Defaults to None.
     allow_redirects (bool, optional): Allow request to redirect. Defaults to True.
@@ -185,11 +186,11 @@ Get the response headers:
 
 ## Sessions
 
-Creating a new Firefox Session object:
+Creating a new Chrome Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('firefox', version=110)
+>>> session = hrequests.Session('chrome', version=112)
 ```
 
 <details>
@@ -197,7 +198,7 @@ Creating a new Firefox Session object:
 
 ```
 Parameters:
-    browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'firefox'.
+    browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'chrome'.
     version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
     os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
@@ -340,9 +341,10 @@ The method `async_get` will create an unsent request.
 ```
 Parameters:
     url (str): URL to send request to
-    params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
-    data (Union[str, dict], optional): Data to send to request. Defaults to None.
+    data (Union[str, bytes, bytearray, dict], optional): Data to send to request. Defaults to None.
+    files (Dict[str, Union[BufferedReader, tuple]], optional): Data to send to request. Defaults to None.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
+    params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
     cookies (Union[RequestsCookieJar, dict, list], optional): Dict or CookieJar to send. Defaults to None.
     json (dict, optional): Json to send in the request body. Defaults to None.
     allow_redirects (bool, optional): Allow request to redirect. Defaults to True.
@@ -350,6 +352,7 @@ Parameters:
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (int, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
+    no_pause (bool, optional): Run the request in the background. Defaults to False.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
@@ -462,7 +465,7 @@ To handle timeouts or any other exception during the connection of the request, 
 ...    return f'Response failed: {exception}'
 
 >>> bad_reqs = [
-...     hrequests.async_get('http://httpbin.org/delay/1', timeout=0.001),
+...     hrequests.async_get('http://httpbin.org/delay/5', timeout=1),
 ...     hrequests.async_get('http://fakedomain/'),
 ...     hrequests.async_get('http://example.com/'),
 ... ]

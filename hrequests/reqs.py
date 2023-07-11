@@ -1,13 +1,14 @@
 import traceback
 from functools import partial
 from threading import Thread, get_ident
-from typing import Optional
+from typing import Dict, Optional
 
 import gevent
 from gevent.pool import Pool
 
 import hrequests
 from hrequests.exceptions import NoPauseRuntimeException
+from urllib.parse import urlencode
 
 
 class TLSRequest:
@@ -20,6 +21,7 @@ class TLSRequest:
         url (str): URL to request.
         session (hrequests.session.TLSSession, optional): Associated `TLSSession`. Defaults to None.
         raise_exception (bool, optional): Raise exceptions (default FALSE for async, TRUE for sync). Defaults to False.
+        params (Dict[str, str], optional): Parameters to pass to request. Defaults to None.
         callback (function, optional): Callback called on response. Same as passing ``hooks={'response': callback}``. Defaults to None.
 
     Attributes:
@@ -57,6 +59,7 @@ class TLSRequest:
         method: str,
         url: str,
         session: Optional['hrequests.session.TLSSession'] = None,
+        params: Optional[Dict[str, str]] = None,
         raise_exception: bool = True,
         **kwargs,
     ):
@@ -65,7 +68,10 @@ class TLSRequest:
         # Raise exceptions (default FALSE for async, TRUE for sync)
         self.raise_exception: bool = raise_exception
         # URL to request
-        self.url: str = url
+        if params is None:
+            self.url: str = url
+        else:
+            self.url: str = f'{url}?{urlencode(params, doseq=True)}'
 
         # Session kwargs
         self.sess_kwargs: dict | None = None

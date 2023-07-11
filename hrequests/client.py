@@ -2,21 +2,21 @@ import base64
 import ctypes
 import urllib.parse
 import uuid
-from collections import OrderedDict
-from typing import Mapping, MutableMapping, Optional, Union
+from typing import Optional, Union
 
 from orjson import dumps, loads
 
 import hrequests
+from .toolbelt import CaseInsensitiveDict
 
 from .cffi import freeMemory, request
 from .cookies import (
+    RequestsCookieJar,
     cookiejar_from_dict,
     cookiejar_to_list,
-    list_to_cookiejar,
     extract_cookies_to_jar,
+    list_to_cookiejar,
     merge_cookies,
-    RequestsCookieJar,
 )
 from .exceptions import ClientException
 
@@ -273,9 +273,8 @@ class TLSClient:
         self,
         method: str,
         url: str,
-        params: Optional[dict] = None,  # Optional[dict[str, str]]
-        data: Optional[Union[str, dict]] = None,
-        headers: Optional[dict] = None,  # Optional[dict[str, str]]
+        data: Optional[Union[str, bytes, bytearray, dict]] = None,
+        headers: Optional[Union[dict, CaseInsensitiveDict]] = None,  # Optional[dict[str, str]]
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,  # Optional[dict[str, str]]
         json: Optional[Union[dict, list, str]] = None,  # Optional[dict]
         allow_redirects: Optional[bool] = False,
@@ -283,10 +282,6 @@ class TLSClient:
         timeout_seconds: int = 30,
         proxy: Optional[dict] = None,  # Optional[dict[str, str]]
     ):
-        # Prepare URL - add params to url
-        if params is not None:
-            url = f'{url}?{urllib.parse.urlencode(params, doseq=True)}'
-
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
         if data is None and json is not None:
@@ -348,7 +343,7 @@ class TLSClient:
             'forceHttp1': self.force_http1,
             'withDebug': self.debug,
             'catchPanics': self.catch_panics,
-            'headers': dict(headers),
+            'headers': dict(headers) if isinstance(headers, CaseInsensitiveDict) else headers,
             'headerOrder': self.header_order,
             'insecureSkipVerify': insecure_skip_verify,
             'isByteRequest': is_byte_request,
@@ -405,52 +400,3 @@ class TLSClient:
         )
         # build response class
         return hrequests.response.build_response(response_object, response_cookie_jar)
-
-
-class CaseInsensitiveDict(MutableMapping):
-    '''
-    Origin: requests library (https://github.com/psf/requests)
-    A case-insensitive ``dict``-like object.
-    '''
-
-    def __init__(self, data=None, **kwargs):
-        self._store = OrderedDict()
-        if data is None:
-            data = {}
-        self.update(data, **kwargs)
-
-    def __setitem__(self, key, value):
-        # Use the lowercased key for lookups, but store the actual
-        # key alongside the value.
-        self._store[key.lower()] = (key, value)
-
-    def __getitem__(self, key):
-        return self._store[key.lower()][1]
-
-    def __delitem__(self, key):
-        del self._store[key.lower()]
-
-    def __iter__(self):
-        return (casedkey for casedkey, mappedvalue in self._store.values())
-
-    def __len__(self):
-        return len(self._store)
-
-    def lower_items(self):
-        '''Like iteritems(), but with all lowercase keys.'''
-        return ((lowerkey, keyval[1]) for (lowerkey, keyval) in self._store.items())
-
-    def __eq__(self, other):
-        if isinstance(other, Mapping):
-            other = CaseInsensitiveDict(other)
-        else:
-            return NotImplemented
-        # Compare insensitively
-        return dict(self.lower_items()) == dict(other.lower_items())
-
-    # Copy is required
-    def copy(self):
-        return CaseInsensitiveDict(self._store.values())
-
-    def __repr__(self):
-        return str(dict(self.items()))

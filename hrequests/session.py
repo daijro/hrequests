@@ -9,8 +9,9 @@ from hrequests.reqs import *
 from hrequests.response import ProcessResponse
 
 from .cffi import freeMemory
-from .client import CaseInsensitiveDict, TLSClient
+from .client import TLSClient
 from .cookies import RequestsCookieJar
+from .toolbelt import CaseInsensitiveDict
 
 
 class TLSSession(TLSClient):
@@ -37,15 +38,15 @@ class TLSSession(TLSClient):
     Methods:
         get(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a GET request
-        post(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        post(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a POST request
         options(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a OPTIONS request
         head(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a HEAD request
-        put(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        put(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a PUT request
-        patch(url, *, params=None, data=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        patch(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a PATCH request
         delete(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
             Send a DELETE request
@@ -128,9 +129,9 @@ class TLSSession(TLSClient):
         method: str,
         url: str,
         *,
-        params: Optional[dict] = None,
-        data: Optional[Union[str, dict]] = None,
-        headers: Optional[dict] = None,
+        data: Optional[Union[str, bytes, bytearray, dict]] = None,
+        files: Optional[dict] = None,
+        headers: Optional[Union[dict, CaseInsensitiveDict]] = None,
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
         json: Optional[Union[dict, list, str]] = None,
         allow_redirects: bool = True,
@@ -145,8 +146,8 @@ class TLSSession(TLSClient):
         Args:
             method (str): Method of request (GET, POST, OPTIONS, HEAD, PUT, PATCH, DELETE)
             url (str): URL to send request to
-            params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
-            data (Union[str, dict], optional): Data to send to request. Defaults to None.
+            data (Union[str, bytes, bytearray, dict], optional): Data to send to request. Defaults to None.
+            files (dict, optional): Files to send with request. Defaults to None.
             headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
             cookies (Union[RequestsCookieJar, dict, list], optional): Dict or CookieJar to send. Defaults to None.
             json (dict, optional): Json to send in the request body. Defaults to None.
@@ -165,8 +166,8 @@ class TLSSession(TLSClient):
             session=self,
             method=method,
             url=url,
-            params=params,
             data=data,
+            files=files,
             headers=headers,
             cookies=cookies,
             json=json,
@@ -197,7 +198,7 @@ class TLSSession(TLSClient):
 class Session(TLSSession):
     def __init__(
         self,
-        browser: Literal['firefox', 'chrome', 'opera'] = 'firefox',
+        browser: Literal['firefox', 'chrome', 'opera'] = 'chrome',
         version: Optional[int] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
@@ -206,7 +207,7 @@ class Session(TLSSession):
     ):
         '''
         Parameters:
-            browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'firefox'.
+            browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'chrome'.
             version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
             os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
             headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.

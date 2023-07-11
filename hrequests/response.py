@@ -11,6 +11,7 @@ import hrequests
 from hrequests.exceptions import ClientException
 
 from .cookies import RequestsCookieJar
+from .toolbelt import CaseInsensitiveDict, FileUtils
 
 
 class ProcessResponse:
@@ -19,6 +20,7 @@ class ProcessResponse:
         session,
         method: str,
         url: str,
+        files: Optional[dict] = None,
         allow_redirects: bool = True,
         chain: bool = False,
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
@@ -28,6 +30,25 @@ class ProcessResponse:
         self.method: str = method
         self.url: str = url
         self.allow_redirects: bool = allow_redirects
+
+        if files:
+            data = kwargs['data']
+            headers = kwargs['headers']
+            # assert that data is a dict
+            if data is not None:
+                assert isinstance(data, dict), "Data must be a dict when files are passed"
+            # convert files to multipart/form-data
+            kwargs['data'], content_type = FileUtils.encode_files(files, data)
+            # content_type needs to be set to Content-Type header
+            # if headers is None, append Content-Type to the existing session headers
+            if headers is None:
+                headers = self.session.headers.copy()
+            # else if headers were provided, append Content-Type to those
+            elif isinstance(headers, dict):
+                headers = CaseInsensitiveDict(headers)
+            headers['Content-Type'] = content_type
+            kwargs['headers'] = headers
+
         self.chain: bool = chain
         self.cookies: Optional[Union[RequestsCookieJar, dict, list]] = cookies
         self.kwargs: dict = kwargs
@@ -48,7 +69,11 @@ class ProcessResponse:
             redirect = self.allow_redirects
         try:
             resp = self.session.execute_request(
-                self.method, self.url, cookies=self.cookies, allow_redirects=redirect, **self.kwargs
+                self.method,
+                self.url,
+                cookies=self.cookies,
+                allow_redirects=redirect,
+                **self.kwargs,
             )
         except IOError as e:
             raise ClientException('Connection error') from e
