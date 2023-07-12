@@ -25,6 +25,7 @@ class TLSSession(TLSClient):
         headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
         temp (bool, optional): Indicates if session is temporary. Defaults to False.
         verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
+        timeout (int, optional): Default timeout in seconds. Defaults to 30.
         ja3_string (str, optional): JA3 string. Defaults to None.
         h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
         additional_decode (str, optional): Additional decode. Defaults to None.
@@ -62,6 +63,7 @@ class TLSSession(TLSClient):
         headers: Optional[dict] = None,
         temp: bool = False,
         verify: bool = True,
+        timeout: int = 30,
         *args,
         **kwargs,
     ):
@@ -93,6 +95,7 @@ class TLSSession(TLSClient):
         self.browser: str = browser  # browser name
         self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
+        self.timeout: int = timeout  # default timeout
 
         # set headers
         if headers:
@@ -136,8 +139,8 @@ class TLSSession(TLSClient):
         json: Optional[Union[dict, list, str]] = None,
         allow_redirects: bool = True,
         history: bool = False,
-        verify: bool = True,  # maps to insecure_skip_verify
-        timeout: int = 30,  # maps to timeout_seconds
+        verify: Optional[bool] = None,
+        timeout: Optional[int] = None,
         proxies: Optional[dict] = None,
     ) -> 'hrequests.response.Response':
         """
@@ -160,8 +163,6 @@ class TLSSession(TLSClient):
         Returns:
             hrequests.response.Response: Response object
         """
-        if verify is None:
-            verify = self.verify
         proc = ProcessResponse(
             session=self,
             method=method,
@@ -173,8 +174,8 @@ class TLSSession(TLSClient):
             json=json,
             allow_redirects=allow_redirects,
             chain=history,
-            insecure_skip_verify=not verify,
-            timeout_seconds=timeout,
+            verify=self.verify if verify is None else verify,
+            timeout=self.timeout if timeout is None else timeout,
             proxy=proxies,
         )
         proc.send()

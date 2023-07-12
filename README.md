@@ -203,6 +203,7 @@ Parameters:
     os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
+    timeout (int, optional): Default timeout in seconds. Defaults to 30.
     ja3_string (str, optional): JA3 string. Defaults to None.
     h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
     additional_decode (str, optional): Additional decode. Defaults to None.

@@ -274,13 +274,13 @@ class TLSClient:
         method: str,
         url: str,
         data: Optional[Union[str, bytes, bytearray, dict]] = None,
-        headers: Optional[Union[dict, CaseInsensitiveDict]] = None,  # Optional[dict[str, str]]
-        cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,  # Optional[dict[str, str]]
-        json: Optional[Union[dict, list, str]] = None,  # Optional[dict]
-        allow_redirects: Optional[bool] = False,
-        insecure_skip_verify: Optional[bool] = False,
-        timeout_seconds: int = 30,
-        proxy: Optional[dict] = None,  # Optional[dict[str, str]]
+        headers: Optional[Union[dict, CaseInsensitiveDict]] = None,
+        cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
+        json: Optional[Union[dict, list, str]] = None,
+        allow_redirects: bool = False,
+        verify: Optional[bool] = None,
+        timeout: Optional[int] = None,
+        proxy: Optional[dict] = None,
     ):
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
@@ -345,7 +345,7 @@ class TLSClient:
             'catchPanics': self.catch_panics,
             'headers': dict(headers) if isinstance(headers, CaseInsensitiveDict) else headers,
             'headerOrder': self.header_order,
-            'insecureSkipVerify': insecure_skip_verify,
+            'insecureSkipVerify': not verify,
             'isByteRequest': is_byte_request,
             'additionalDecode': self.additional_decode,
             'proxyUrl': proxy,
@@ -355,7 +355,7 @@ class TLSClient:
             if is_byte_request
             else request_body,
             'requestCookies': cookiejar_to_list(self.cookies),
-            'timeoutSeconds': timeout_seconds,
+            'timeoutSeconds': timeout,
         }
         if self.client_identifier is None:
             request_payload['customTlsClient'] = {
