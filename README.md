@@ -761,6 +761,7 @@ Navigate through page history:
 ```
 
 ### Controlling elements
+
 Click an element:
 ```py
 >>> page.click('#my-button')
@@ -777,6 +778,23 @@ Parameters:
     count (int, optional): Number of clicks. Defaults to 1.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
     wait_after (bool, optional): Wait for a page event before continuing. Defaults to True.
+```
+</details>
+
+Hover over an element:
+```py
+>>> page.hover('.dropbtn')
+# or through the html parser
+>>> page.html.find('.dropbtn').hover()
+```
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    selector (str): CSS selector to hover over
+    modifiers (List[Literal['Alt', 'Control', 'Meta', 'Shift']], optional): Modifier keys to press. Defaults to None.
+    timeout (float, optional): Timeout in seconds. Defaults to 90.
 ```
 </details>
 

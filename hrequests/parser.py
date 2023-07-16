@@ -89,6 +89,7 @@ class BaseParser:
         'dragTo',
         'type',
         'click',
+        'hover',
     }
 
     def __getattr__(self, name):

@@ -2,7 +2,7 @@ import asyncio
 from functools import partial
 from random import choice
 from threading import Thread
-from typing import Any, Callable, Dict, Literal, Optional, Pattern, Union
+from typing import Any, Callable, Dict, Literal, Optional, Pattern, Union, List
 
 from aioprocessing import Queue
 from fake_headers import Headers
@@ -50,6 +50,7 @@ class BrowserSession:
         dragTo(source, target, timeout, wait_after, check): Drag and drop a selector
         type(selector, text, delay, timeout): Type text into a selector
         click(selector, click_count, button, timeout, wait_after): Click a selector
+        hover(selector, modifiers, timeout): Hover over a selector
         evaluate(script, arg): Evaluate and return a script
         screenshot(path, full_page): Take a screenshot of the page
         setHeaders(headers): Set the browser headers. Note that this will NOT update the TLSSession headers
@@ -349,6 +350,23 @@ class BrowserSession:
             timeout=int(timeout * 1e3),
             no_wait_after=not wait_after,
         )
+
+    async def _hover(
+        self,
+        selector: str,
+        modifiers: Optional[List[Literal['Alt', 'Control', 'Meta', 'Shift']]] = None,
+        *,
+        timeout: float = 90,
+    ):
+        '''
+        Hover over a selector
+
+        Parameters:
+            selector (str): CSS selector to hover over
+            modifiers (List[Literal['Alt', 'Control', 'Meta', 'Shift']], optional): Modifier keys to press. Defaults to None.
+            timeout (float, optional): Timeout in seconds. Defaults to 90.
+        '''
+        return await self.page.hover(selector, modifiers=modifiers, timeout=int(timeout * 1e3))
 
     async def _evaluate(self, script: str, arg: Optional[str] = None):
         '''
