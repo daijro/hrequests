@@ -74,7 +74,7 @@ class TLSRequest:
             self.url: str = f'{url}?{urlencode(params, doseq=True)}'
 
         # Session kwargs
-        self.sess_kwargs: dict | None = None
+        self.sess_kwargs: Optional[dict] = None
         if kwargs:
             sess_kwargs = set(kwargs.keys()) & TLSRequest.session_kwargs
             if session and sess_kwargs:

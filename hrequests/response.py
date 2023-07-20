@@ -124,7 +124,7 @@ class Response:
     session: Optional[
         Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']
     ] = None
-    elapsed: timedelta | None = None
+    elapsed: Optional[timedelta] = None
 
     @property
     def reason(self):
