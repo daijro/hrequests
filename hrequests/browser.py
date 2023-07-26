@@ -1,8 +1,9 @@
 import asyncio
+import os
 from functools import partial
 from random import choice
 from threading import Thread
-from typing import Any, Callable, Dict, Literal, Optional, Pattern, Union, List
+from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Pattern, Union
 
 from aioprocessing import Queue
 from fake_headers import Headers
@@ -12,10 +13,11 @@ from playwright._impl._api_types import TimeoutError as PlaywrightTimeoutError
 import hrequests
 from hrequests.client import CaseInsensitiveDict
 from hrequests.cookies import cookiejar_to_list, list_to_cookiejar
-from hrequests.exceptions import BrowserException, BrowserTimeoutException
+from hrequests.exceptions import BrowserException, BrowserTimeoutException, JavascriptException
 from hrequests.response import Response
 
 from .cookies import RequestsCookieJar
+from .extensions import BuildExtensions, Extension, activate_exts
 
 
 class BrowserSession:
@@ -29,6 +31,7 @@ class BrowserSession:
         allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
         browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
         os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
+        extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 
     Attributes:
         url (str): Get the page url
@@ -76,6 +79,7 @@ class BrowserSession:
         allow_styling: bool = True,
         browser: Optional[Literal['firefox', 'chrome', 'opera']] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
+        extensions: Optional[Union[str, Iterable[str]]] = None,
     ) -> None:
         # uses asyncio queues to communicate with the asyncio loop from any thread
         # _in is for calls from other threads
@@ -100,6 +104,9 @@ class BrowserSession:
         # browser config
         self.mock_human: bool = mock_human
         self.headless: bool = headless
+        self.extensions: Optional[List[Extension]] = (
+            BuildExtensions(extensions).list if extensions else None
+        )
         # bool to indicate browser was closed
         self._closed: bool = False
         # boolean to disable loading images, fonts, styles, etc
@@ -113,7 +120,9 @@ class BrowserSession:
 
     async def main(self) -> None:
         # build the playwright instance
-        self.client = await hrequests.PlaywrightMock(headless=self.headless)
+        self.client = await hrequests.PlaywrightMock(
+            headless=self.headless, extensions=self.extensions
+        )
         self.context = await self.client.new_context(
             browser_name=self.browser,
             user_agent=self.ua,
@@ -124,24 +133,31 @@ class BrowserSession:
         self.page = await self.context.new_page()
         # route all requests through handle_request to kill unnessecary requests
         await self.page.route("**/*", self.handle_request)
-        # run the main loop:
-        # 1. listen for calls to _in
-        # 2. handle the call within the asyncio loop
-        # 3. put the call response in _out.
-        # this is used as a work around to make playwright work across threads
+        # activate extensions
+        if self.extensions:
+            await activate_exts(self.page, self.extensions)
+        '''
+        run the main loop
+        '''
         while True:
             try:
+                # listen for calls to _in
                 call: partial = self._in.get()
+                # handle the call within the asyncio loop
+                # this is used as a workaround to make playwright work across threads
                 out = await call()
             except PlaywrightTimeoutError as e:
+                # if a timeout error is raised, mark as closed and put the error in _out
                 self._closed = True
                 self._out.put(BrowserTimeoutException(e))
             except PlaywrightError as e:
+                # if a playwright error is raised, mark as closed and put the error in _out
                 self._closed = True
                 self._out.put(BrowserException(e))
             except BrowserException as e:
                 self._out.put(e)
             else:
+                # put the call response in _out
                 self._out.put(out)
 
     # unnessecary resource requests to kill
@@ -177,7 +193,7 @@ class BrowserSession:
     def __getattr__(self, name) -> Any:
         # sourcery skip: raise-from-previous-error
         if self._closed:
-            raise BrowserException('Browser was closed. Attribute call failed: ' + name)
+            raise BrowserException(f'Browser was closed. Attribute call failed: {name}')
         # forwards unknown attribute calls to _call_wrapper
         try:
             # check if the attribute (with a leading _) exists
@@ -376,7 +392,10 @@ class BrowserSession:
             script (str): Javascript to evaluate in the page
             arg (str, optional): Argument to pass into the javascript function
         '''
-        return await self.page.evaluate(script, arg=arg)
+        try:
+            return await self.page.evaluate(script, arg=arg)
+        except PlaywrightError as e:
+            raise JavascriptException('Javascript eval exception') from e
 
     async def _screenshot(self, path: str, full_page: bool = False):
         '''
@@ -583,6 +602,7 @@ def render(
     session: hrequests.session.TLSSession = None,
     mock_human: bool = False,
     allow_styling: bool = True,
+    extensions: Optional[Union[str, Iterable[str]]] = None,
 ):
     assert any((url, session, response)), 'Must provide a url or an existing session, response'
     if proxy:
@@ -594,6 +614,7 @@ def render(
         headless=headless,
         mock_human=mock_human,
         allow_styling=allow_styling,
+        extensions=extensions,
     )
     # include headers from session if a TLSSession is provided
     if session and isinstance(session, hrequests.session.TLSSession):

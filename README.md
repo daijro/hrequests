@@ -10,7 +10,7 @@
         <img src="https://img.shields.io/github/license/daijro/hrequests.svg">
     </a>
     <a href="https://python.org/">
-        <img src="https://img.shields.io/badge/python-3.6&#8208;3.11-blue">
+        <img src="https://img.shields.io/badge/python-3.7&#8208;3.11-blue">
     </a>
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
@@ -640,6 +640,23 @@ You can spawn a `BrowserSession` instance by calling it:
 >>> page = hrequests.BrowserSession()  # headless=True by default
 ```
 
+<details>
+<summary>Parameters</summary>
+
+```
+Parameters:
+    headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
+    session (hrequests.session.TLSSession, optional): Session to use for headers, cookies, etc.
+    resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
+    proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
+    mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
+    allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
+    browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
+    os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
+    extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
+```
+</details>
+
 `BrowserSession` is entirely safe to use across threads.
 
 ### Render an existing Response
@@ -684,6 +701,7 @@ Parameters:
     headless (bool, optional): Whether to run the browser in headless mode. Defaults to False.
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
     allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
+    extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 ```
 </details>
 
@@ -702,7 +720,6 @@ page.allow_styling: bool = False
 ```
 
 ### Pulling page data
-
 
 Get current page url:
 
@@ -959,6 +976,38 @@ Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
 </details>
+
+### Adding Chrome extensions
+
+Chrome extensions can be easily imported into a browser session. Some potentially useful extensions include:
+
+- [hektCaptcha](https://github.com/Wikidepia/hektCaptcha-extension) - Hcaptcha solver
+
+- [uBlock Origin](https://github.com/gorhill/uBlock) - Ad & popup blocker
+
+- [FastForward](https://fastforward.team/) - Bypass & skip link redirects
+
+Extensions are added with the `extensions` parameter.
+
+- This can be an list of absolute paths to unpacked extensions:
+    ```py
+    with resp.render(extensions=['C:\\extentions\\hektcaptcha', 'C:\\extentions\\ublockorigin']):
+    ```
+
+- Or a folder containing the unpacked extensions:
+    ```py
+    with resp.render(extensions='C:\\extentions'):
+    ```
+
+    Note that these need to be *unpacked* extensions. You can unpack a `.crx` file by changing the file extension to `.zip` and extracting the contents.
+
+Here is an usage example of using a captcha solver:
+
+```py
+>>> resp = hrequests.get('https://accounts.hcaptcha.com/demo')
+>>> with resp.render(extensions=['C:\\extentions\\hektcaptcha']):
+...     page.awaitSelector('.hcaptcha-success')  # wait for captcha to finish
+```
 
 ### Requests & Responses
 

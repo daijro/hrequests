@@ -1,18 +1,26 @@
+from typing import List, Tuple
+
 from async_class import AsyncObject
 from hrequests.playwright_mock import Faker, ProxyManager, context
 from playwright.async_api import async_playwright
 
 
 class PlaywrightMock(AsyncObject):
-    async def __ainit__(self, headless=False, scroll_into_view=True):
+    async def __ainit__(
+        self,
+        headless: bool = False,
+        scroll_into_view: bool = True,
+        extensions=None,
+    ):
         # setting values
         self.scroll_into_view = scroll_into_view
+        self.extensions = extensions
         # starting Playwright
         self.playwright = await async_playwright().start()
         # launching chromium
-        self.main_browser = await self.launch_browser(client=self.playwright, headless=headless)
+        self.main_browser = await self.launch_browser(headless=headless)
 
-    args = [
+    args: Tuple[str] = (
         '--disable-blink-features=AutomationControlled',
         '--disable-web-security',
         '--disable-site-isolation-trials',
@@ -21,14 +29,17 @@ class PlaywrightMock(AsyncObject):
         'IsolateOrigins,'
         'site-per-process,'
         'SharedArrayBuffer',
-    ]
+    )  # type: ignore
 
-    @staticmethod
-    async def launch_browser(client, headless=False):
-        return await client.chromium.launch(
-            headless=headless,
-            args=PlaywrightMock.args + (['--headless=new'] if headless else []),
-        )
+    async def launch_browser(self, headless: bool = False):
+        args: List[str] = list(PlaywrightMock.args)
+        if headless:
+            args.append('--headless=new')
+        if self.extensions:
+            paths = [ext.path for ext in self.extensions]
+            args.extend(f'--load-extension={ext}' for ext in paths)
+            args.append(f'--disable-extensions-except={",".join(paths)}')
+        return await self.playwright.chromium.launch(headless=headless, args=args)
 
     async def stop(self):
         await self.main_browser.close()

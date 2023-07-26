@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from json import detect_encoding
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Iterable
 
 import orjson
 
@@ -186,7 +186,12 @@ class Response:
         return self.ok
 
     def render(
-        self, *, headless: bool = True, mock_human: bool = False, allow_styling: bool = True
+        self,
+        *,
+        headless: bool = True,
+        mock_human: bool = False,
+        allow_styling: bool = True,
+        extensions: Optional[Union[str, Iterable[str]]] = None,
     ) -> 'hrequests.browser.BrowserSession':
         return hrequests.browser.render(
             response=self,
@@ -195,6 +200,7 @@ class Response:
             headless=headless,
             mock_human=mock_human,
             allow_styling=allow_styling,
+            extensions=extensions,
         )
 
     def __enter__(self):

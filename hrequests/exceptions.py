@@ -20,3 +20,7 @@ class NoPauseRuntimeException(RuntimeError):
 
 class NotRenderedException(Exception):
     '''Raise when the user tries to interact with an element that is not in a BrowserSession'''
+
+
+class JavascriptException(BrowserException):
+    '''Exception raised when a javascript error occurs'''
