@@ -34,10 +34,10 @@ class LibraryManager:
             return r'.*arm64\-.*\.so'
         if platform == 'linux':
             # check if alpine
-            os_name_dat = os.popen('cat /etc/os-release').read()
+            os_name_dat = open('/etc/os-release', 'r').read()
             if not os_name_dat:
                 return r'.*ubuntu\-amd64\-.*\.so'
-            os_name = re.search(r'NAME="(\w+)"', os_name_dat)[1]
+            os_name = re.search(r'\sID=(\w+)', os_name_dat)[1]
             if os_name.lower() == 'alpine':
                 return r'.*alpine\-amd64\-.*\.so'
         return r'.*ubuntu\-amd64\-.*\.so'

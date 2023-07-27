@@ -491,9 +491,9 @@ def list_to_cookiejar(browser_cookies: list) -> RequestsCookieJar:
 def cookiejar_to_list(cookiejar: RequestsCookieJar) -> list:
     return [
         {
-            'session' if key == 'discard' else key: getattr(cookie, key)
+            'session' if key == 'discard' else key: val
             for key in cookie_keys
-            if key in cookie.__dict__
+            if key in cookie.__dict__ and (val := getattr(cookie, key)) is not None
         }
         for cookie in cookiejar
     ]

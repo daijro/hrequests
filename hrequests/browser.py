@@ -235,7 +235,7 @@ class BrowserSession:
             selector (str): Selector to wait for
             timeout (float, optional): Timeout in seconds. Defaults to 30.
         '''
-        return await self.page.wait_for_function(
+        await self.page.wait_for_function(
             "selector => !!document.querySelector(selector)",
             arg=selector,
             timeout=int(timeout * 1e3),
@@ -249,7 +249,7 @@ class BrowserSession:
             selector (str): Selector to wait for
             timeout (float, optional): Timeout in seconds. Defaults to 30.
         '''
-        return await self.page.wait_for_function(
+        await self.page.wait_for_function(
             "selector => !document.querySelector(selector).disabled",
             arg=selector,
             timeout=int(timeout * 1e3),
