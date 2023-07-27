@@ -43,6 +43,7 @@
 
 - Simple & uncomplicated browser automation
 - Human-like cursor movement and typing
+- Chrome extension support
 - Full page screenshots
 - Headless and headful support
 - No CORS restrictions
@@ -60,8 +61,8 @@
 Install via pip:
 
 ```bash
-pip install hrequests
-playwright install
+pip install -U hrequests
+python -m playwright install chromium
 ```
 
 Other depedencies will be downloaded on the first import:
@@ -998,7 +999,7 @@ Here is an usage example of using a captcha solver:
 ```py
 >>> with hrequests.render('https://accounts.hcaptcha.com/demo', extensions=['C:\\extentions\\hektcaptcha']):
 ...     page.awaitSelector('.hcaptcha-success')  # wait for captcha to finish
-...     page.html.find('input[type=submit]').click()
+...     page.click('input[type=submit]')
 ```
 
 ### Requests & Responses
