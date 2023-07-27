@@ -28,7 +28,6 @@ class BrowserSession:
         resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
         proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
         mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-        allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
         browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
         os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
         extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
@@ -76,7 +75,6 @@ class BrowserSession:
         resp: Optional[hrequests.response.Response] = None,
         proxy_ip: Optional[str] = None,
         mock_human: bool = False,
-        allow_styling: bool = True,
         browser: Optional[Literal['firefox', 'chrome', 'opera']] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         extensions: Optional[Union[str, Iterable[str]]] = None,
@@ -109,8 +107,6 @@ class BrowserSession:
         )
         # bool to indicate browser was closed
         self._closed: bool = False
-        # boolean to disable loading images, fonts, styles, etc
-        self.allow_styling: bool = allow_styling
         # spawn asyncio loop
         thread: Thread = Thread(target=self.spawn_main, daemon=True)
         thread.start()
@@ -131,8 +127,6 @@ class BrowserSession:
         )
         # create a new page
         self.page = await self.context.new_page()
-        # route all requests through handle_request to kill unnessecary requests
-        await self.page.route("**/*", self.handle_request)
         # activate extensions
         if self.extensions:
             await activate_exts(self.page, self.extensions)
@@ -159,16 +153,6 @@ class BrowserSession:
             else:
                 # put the call response in _out
                 self._out.put(out)
-
-    # unnessecary resource requests to kill
-    _excluded_resources = {'font', 'image', 'stylesheet', 'media'}
-
-    async def handle_request(self, route) -> None:
-        # kill unnessecary requests
-        if not self.allow_styling and route.request.resource_type in self._excluded_resources:
-            await route.abort()
-        else:
-            await route.continue_()
 
     async def shutdown(self) -> None:
         self._closed = True
@@ -601,7 +585,6 @@ def render(
     response: hrequests.response.Response = None,
     session: hrequests.session.TLSSession = None,
     mock_human: bool = False,
-    allow_styling: bool = True,
     extensions: Optional[Union[str, Iterable[str]]] = None,
 ):
     assert any((url, session, response)), 'Must provide a url or an existing session, response'
@@ -613,7 +596,6 @@ def render(
         proxy_ip=proxy,
         headless=headless,
         mock_human=mock_human,
-        allow_styling=allow_styling,
         extensions=extensions,
     )
     # include headers from session if a TLSSession is provided

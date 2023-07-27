@@ -190,7 +190,6 @@ class Response:
         *,
         headless: bool = True,
         mock_human: bool = False,
-        allow_styling: bool = True,
         extensions: Optional[Union[str, Iterable[str]]] = None,
     ) -> 'hrequests.browser.BrowserSession':
         return hrequests.browser.render(
@@ -199,7 +198,6 @@ class Response:
             proxy=self.session.proxies if self.session else None,
             headless=headless,
             mock_human=mock_human,
-            allow_styling=allow_styling,
             extensions=extensions,
         )
 

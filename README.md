@@ -650,7 +650,6 @@ Parameters:
     resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
     proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-    allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
     browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
@@ -700,7 +699,6 @@ The `mock_human` parameter will emulate human-like behavior. This includes easin
 Parameters:
     headless (bool, optional): Whether to run the browser in headless mode. Defaults to False.
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-    allow_styling (bool, optional): Allow loading images, fonts, styles, etc. Defaults to True
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 ```
 </details>
@@ -712,11 +710,6 @@ Cookies are inherited from the session:
 ```py
 >>> page.cookies: RequestsCookieJar  # cookies are inherited from the session
 <RequestsCookieJar[Cookie(version=0, name='1P_JAR', value='2023-07-05-20', port=None, port_specified=False, domain='.somewebsite.com', domain_specified=True...
-```
-
-Toggle loading unnessecary resources such as images, fonts, styles, etc:
-```py
-page.allow_styling: bool = False
 ```
 
 ### Pulling page data
@@ -998,15 +991,14 @@ Extensions are added with the `extensions` parameter.
     ```py
     with resp.render(extensions='C:\\extentions'):
     ```
-
     Note that these need to be *unpacked* extensions. You can unpack a `.crx` file by changing the file extension to `.zip` and extracting the contents.
 
 Here is an usage example of using a captcha solver:
 
 ```py
->>> resp = hrequests.get('https://accounts.hcaptcha.com/demo')
->>> with resp.render(extensions=['C:\\extentions\\hektcaptcha']):
+>>> with hrequests.render('https://accounts.hcaptcha.com/demo', extensions=['C:\\extentions\\hektcaptcha']):
 ...     page.awaitSelector('.hcaptcha-success')  # wait for captcha to finish
+...     page.html.find('input[type=submit]').click()
 ```
 
 ### Requests & Responses
