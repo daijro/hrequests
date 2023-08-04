@@ -173,7 +173,7 @@ class TLSSession(TLSClient):
             cookies=cookies,
             json=json,
             allow_redirects=allow_redirects,
-            chain=history,
+            history=history,
             verify=self.verify if verify is None else verify,
             timeout=self.timeout if timeout is None else timeout,
             proxy=proxies,

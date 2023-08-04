@@ -12,6 +12,7 @@ from hrequests.exceptions import ClientException
 
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict, FileUtils
+from urllib.parse import urlparse, ParseResult
 
 
 class ProcessResponse:
@@ -22,7 +23,7 @@ class ProcessResponse:
         url: str,
         files: Optional[dict] = None,
         allow_redirects: bool = True,
-        chain: bool = False,
+        history: bool = False,
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
         **kwargs,
     ) -> None:
@@ -49,17 +50,17 @@ class ProcessResponse:
             headers['Content-Type'] = content_type
             kwargs['headers'] = headers
 
-        self.chain: bool = chain
+        self.history: bool = history
         self.cookies: Optional[Union[RequestsCookieJar, dict, list]] = cookies
         self.kwargs: dict = kwargs
         self.response: Response
 
     def send(self) -> None:
         time: datetime = datetime.now()
-        if self.chain:
-            resp_chain = list(self.generate_chain())
-            self.response = resp_chain[-1]
-            self.response.history = resp_chain[:-1]
+        if self.history:
+            resp_history = list(self.generate_history())
+            self.response = resp_history[-1]
+            self.response.history = resp_history[:-1]
         else:
             self.response = self.execute_request()
         self.response.elapsed = datetime.now() - time
@@ -80,12 +81,31 @@ class ProcessResponse:
         resp.session = None if self.session.temp else self.session
         return resp
 
-    def generate_chain(self):
+    @staticmethod
+    def _merge_relative(src_url, redir_url):
+        '''merges the netloc of a source url with the path/params/query/fragment of a redirect url'''
+        parsed_red = urlparse(redir_url)
+        # if the redirect url already has a domain and scheme, return with no change
+        if parsed_red.netloc and parsed_red.scheme:
+            return redir_url
+        # parse the source url
+        parsed_src = urlparse(src_url)
+        # rebuild with missing netloc and scheme
+        return ParseResult(
+            scheme=parsed_red.scheme or parsed_src.scheme,
+            netloc=parsed_red.netloc or parsed_src.netloc,
+            path=parsed_red.path,
+            params=parsed_red.params,
+            query=parsed_red.query,
+            fragment=parsed_red.fragment
+        ).geturl()
+
+    def generate_history(self):
         while True:
             resp = self.execute_request(redirect=False)  # don't allow redirects
             yield resp
             if self.allow_redirects and resp.status_code in range(300, 400):
-                self.url = resp.headers['Location']
+                self.url = self._merge_relative(resp.url, resp.headers['Location'])
             else:
                 break
 
