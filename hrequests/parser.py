@@ -502,7 +502,7 @@ class HTML(BaseParser):
         self,
         *,
         session: Optional[
-            Union[hrequests.session.TLSSession, hrequests.browser.BrowserSession]
+            Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']
         ] = None,
         url: str = DEFAULT_URL,
         html: _HTML,
@@ -519,7 +519,8 @@ class HTML(BaseParser):
             url=url,
             default_encoding=default_encoding,
             br_session=weakref.proxy(session)
-            if isinstance(session, hrequests.browser.BrowserSession)
+            if hasattr(hrequests, 'browser')  # if the browser module is imported
+            and isinstance(session, hrequests.browser.BrowserSession)  # and session is a BrowserSession
             else None,
         )
         self.session = session or hrequests.firefox.Session(temp=True)

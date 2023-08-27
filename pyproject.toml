@@ -4,17 +4,25 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "hrequests"
-version = "0.5.1"
+version = "0.6.0"
 description = "Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library."
 authors = ["daijro <daijro.dev@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/daijro/hrequests"
-keywords = ["tls", "client", "http", "scraping", "requests", "humans", "playwright"]
+keywords = [
+    "tls",
+    "client",
+    "http",
+    "scraping",
+    "requests",
+    "humans",
+    "playwright",
+]
 classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
-    "Topic :: Software Development :: Libraries :: Python Modules"
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 [tool.poetry.dependencies]
@@ -22,17 +30,20 @@ python = "^3.7"
 orjson = "*"
 httpx = "*"
 urllib3 = "*"
-playwright = "1.34.0"
-playwright-stealth = "*"
+playwright = { version = "1.34.0", optional = true }
+playwright-stealth = { version = "*", optional = true }
 wget = "*"
 async-class = "*"
 aioprocessing = "*"
 numpy = "*"
 fake-headers = "*"
-pycryptodome = "*"
+pycryptodome = { version = "*", optional = true }
 lxml = "*"
 parse = "*"
 pyquery = "*"
 w3lib = "*"
 gevent = "*"
-msvc-runtime = {version = "*", markers = "sys_platform == 'win32'"}
+msvc-runtime = { version = "*", markers = "sys_platform == 'win32'" }
+
+[tool.poetry.extras]
+all = ["playwright", "playwright-stealth", "pycryptodome"]

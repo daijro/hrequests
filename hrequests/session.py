@@ -1,5 +1,6 @@
 from functools import partial
 from random import choice as rchoice
+from sys import modules, stderr
 from typing import Literal, Optional, Tuple, Union
 
 from fake_headers import Headers
@@ -88,7 +89,12 @@ class TLSSession(TLSClient):
         self.async_delete: partial = partial(async_delete, session=self)
 
         # shortcut to render method
-        self.render: partial = partial(hrequests.browser.render, session=self)
+        if 'playwright' in modules:
+            self.render: partial = partial(hrequests.browser.render, session=self)
+        else:
+            self.render: partial = partial(
+                stderr.write, 'Cannot render. Playwright not installed.\n'
+            )
 
         self.temp: bool = temp  # indicate if session is temporary
         self._closed: bool = False  # indicate if session is closed

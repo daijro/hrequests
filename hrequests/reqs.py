@@ -1,14 +1,16 @@
 import traceback
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import wait as futures_wait
 from functools import partial
-from threading import Thread, get_ident
-from typing import Dict, Optional
+from threading import Thread
+from typing import Dict, Iterable, Optional, Union, overload
+from urllib.parse import urlencode
 
 import gevent
 from gevent.pool import Pool
 
 import hrequests
-from hrequests.exceptions import NoPauseRuntimeException
-from urllib.parse import urlencode
+from hrequests.response import Response
 
 
 class TLSRequest:
@@ -41,7 +43,6 @@ class TLSRequest:
     session_kwargs = {
         'browser',
         'version',
-        'headers',
         'os',
         'ja3_string',
         'h2_settings',
@@ -141,38 +142,31 @@ class LazyTLSRequest(TLSRequest):
     '''
 
     def __init__(self, *args, **kwargs):
-        self.threaded = kwargs.pop('threaded', False)
+        executor: Optional[ThreadPoolExecutor] = kwargs.pop('executor', None)
         super().__init__(*args, **kwargs)
-        # self._thread = gevent.spawn(self.send)
-        if self.threaded:
+
+        self._thread: Union[Thread, Future]
+        if executor:
+            self._thread = executor.submit(self._send)
+        else:
             self._thread = Thread(target=self._send)
             self._thread.start()
-        else:
-            self._thread = gevent.spawn(self._send)
-        self.complete = False
-        self.thread_id = get_ident()
+        self.complete: bool = False
 
     def __repr__(self):
-        if self.complete:
-            return self.response.__repr__()
-        return '<LazyResponse[Pending]>'
+        return self.response.__repr__() if self.complete else '<LazyResponse[Pending]>'
 
     def _send(self):
         super().send()
         self.complete = True
 
     def join(self):
-        if self.complete:
-            return
-        if self.threaded:
-            self._thread.join()  # handle Thread
-        elif self.thread_id == get_ident():
-            gevent.joinall([self._thread])  # handle greenlet
+        if isinstance(self._thread, Future):
+            # await future to be ready
+            futures_wait((self._thread,))
         else:
-            raise NoPauseRuntimeException(
-                '`no_pause=True` can only be used from the thread it was created in. '
-                'Please use `no_pause_threadsafe=True` instead.'
-            )
+            # await thread to be ready
+            self._thread.join()
 
     def __getattr__(self, name: str):
         # if an attribute is called, JOIN the greenlet and continue
@@ -181,13 +175,43 @@ class LazyTLSRequest(TLSRequest):
         return getattr(self.response, name)
 
 
-def request(*args, **kwargs):
+def request_list(
+    method: str, url: Iterable[str], *args, **kwargs
+) -> Iterable[Union[Response, LazyTLSRequest]]:
+    '''
+    Concurrently send requests given a list of urls
+    '''
+    # if wait is False, return a tuple of LazyTLSRequests
+    if kwargs.pop('nohup', None):
+        executor = ThreadPoolExecutor()
+        # return a list of LazyTLSRequests objs
+        return [
+            LazyTLSRequest(method, u, *args, **kwargs, executor=executor, raise_exception=False)
+            for u in url
+        ]
+    # send requests to urls concurrently with map
+    return map([async_request(method, u, *args, **kwargs) for u in url])
+
+
+@overload
+def request(
+    method: str, url: Iterable[str], *args, **kwargs
+) -> Iterable[Union[Response, LazyTLSRequest]]:
+    ...
+
+
+@overload
+def request(method: str, url: str, *args, **kwargs) -> Union[Response, LazyTLSRequest]:
+    ...
+
+
+def request(method: str, url: Union[str, Iterable[str]], *args, **kwargs):
     '''
     Send a request with TLS client
 
     Args:
         method (str): Method of request (GET, POST, OPTIONS, HEAD, PUT, PATCH, DELETE)
-        url (str): URL to send request to
+        url (Union[str, Iterable[str]]): URL or list of URLs to request.
         params (dict, optional): Dictionary of URL parameters to append to the URL. Defaults to None.
         data (Union[str, dict], optional): Data to send to request. Defaults to None.
         headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
@@ -197,22 +221,27 @@ def request(*args, **kwargs):
         verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
         timeout (int, optional): Timeout in seconds. Defaults to 30.
         proxies (dict, optional): Dictionary of proxies. Defaults to None.
+        wait (bool, optional): Wait for response to be ready. Defaults to True.
+        threadsafe (bool, optional): Threadsafe support for wait=False. Defaults to False.
 
     Returns:
         hrequests.response.Response: Response object
     '''
-    if kwargs.pop('no_pause', None):
-        return LazyTLSRequest(*args, **kwargs)
-    if kwargs.pop('no_pause_threadsafe', None):
-        return LazyTLSRequest(*args, **kwargs, threaded=True)
-    req = TLSRequest(*args, **kwargs)
+    # if a list of urls is passed, send requests concurrently
+    if isinstance(url, (list, tuple)):
+        return request_list(method, url, *args, **kwargs)
+    # if nohup is True, return a LazyTLSRequest
+    if kwargs.pop('nohup', None):
+        return LazyTLSRequest(method, url, *args, **kwargs)
+    req = TLSRequest(method, url, *args, **kwargs)
     req.send()
     return req.response
 
 
-def async_request(*args, **kwargs):
+def async_request(*args, **kwargs) -> TLSRequest:
     '''
-    Send an asynchronous request with TLS client
+    Return an unsent request to be used with map, imap, and imap_enum.
+    Used to send requests concurrently.
 
     Args:
         method (str): Method of request (GET, POST, OPTIONS, HEAD, PUT, PATCH, DELETE)

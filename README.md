@@ -3,7 +3,6 @@
 
 <h2 align="center">hrequests</h2>
 
-
 <h4 align="center">
 <p align="center">
     <a href="https://github.com/daijro/hrequests/blob/main/LICENSE">
@@ -16,7 +15,7 @@
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
     </a>
     <a href="https://pepy.tech/project/hrequests">
-        <img alt="PyPI" src="https://pepy.tech/badge/hrequests">
+        <img alt="PyPI" src="https://static.pepy.tech/badge/hrequests">
     </a>
     <a href="https://github.com/ambv/black">
         <img src="https://img.shields.io/badge/code%20style-black-black.svg">
@@ -32,7 +31,7 @@
 
 - Seamless transition between HTTP and headless browsing 💻
 - Integrated fast HTML parser 🚀
-- High performance concurrency with gevent (*without monkey-patching!*)  🚀
+- High performance concurrency with gevent (_without monkey-patching!_) 🚀
 - Replication of browser TLS fingerprints 🚀
 - JavaScript rendering 🚀
 - Supports HTTP/2 🚀
@@ -49,6 +48,7 @@
 - No CORS restrictions
 
 ### ⚡ More
+
 - High performance ✨
 - Minimal dependence on the python standard libraries
 - Written with type safety
@@ -61,7 +61,7 @@
 Install via pip:
 
 ```bash
-pip install -U hrequests
+pip install -U hrequests[all]
 python -m playwright install chromium
 ```
 
@@ -70,6 +70,17 @@ Other depedencies will be downloaded on the first import:
 ```py
 >>> import hrequests
 ```
+
+<details>
+<summary>Or, install without headless browsing support</i></summary>
+
+**Ignore the `[all]` option if you don't want headless browsing support:**
+
+```bash
+pip install -U hrequests
+```
+
+</details>
 
 ---
 
@@ -102,7 +113,7 @@ The `Response` object is a near 1:1 replica of the `requests.Response` object, w
 
 ```
 Parameters:
-    url (str): URL to send request to
+    url (Union[str, Iterable[str]]): URL or list of URLs to request.
     data (Union[str, bytes, bytearray, dict], optional): Data to send to request. Defaults to None.
     files (Dict[str, Union[BufferedReader, tuple]], optional): Data to send to request. Defaults to None.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
@@ -114,7 +125,7 @@ Parameters:
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (int, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
-    no_pause (bool, optional): Run the request in the background. Defaults to False.
+    nohup (bool, optional): Run the request in the background. Defaults to False.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
@@ -123,17 +134,17 @@ Returns:
 
 </details>
 
-
 ### Properties
 
-
 Get the response url:
+
 ```py
 >>> resp.url: str
 'https://www.google.com/'
 ```
 
 Check if the request was successful:
+
 ```py
 >>> resp.status_code: int
 200
@@ -182,7 +193,6 @@ Get the response headers:
 {'Alt-Svc': 'h3=":443"; ma=2592000,h3-29=":443"; ma=2592000', 'Cache-Control': 'private, max-age=0', 'Content-Encoding': 'br', 'Content-Length': '51288', 'Content-Security-Policy-Report-Only': "object-src 'none';base-uri 'se
 ```
 
-
 <hr width=50>
 
 ## Sessions
@@ -215,6 +225,7 @@ Parameters:
     catch_panics (bool, optional): Catch panics. Defaults to False.
     debug (bool, optional): Debug mode. Defaults to False.
 ```
+
 </details>
 
 Browsers can also be created through the `firefox`, `chrome`, and `opera` shortcuts:
@@ -244,6 +255,7 @@ Parameters:
     catch_panics (bool, optional): Catch panics. Defaults to False.
     debug (bool, optional): Debug mode. Defaults to False.
 ```
+
 </details>
 
 `os` can be `'win'`, `'mac'`, or `'lin'`. Default is randomized.
@@ -267,7 +279,6 @@ Website bot detection systems typically do not correlate the TLS fingerprint bro
 By adding more randomization to our headers, we can make our requests appear to be coming from a larger number of clients. We can make it seem like our requests are coming from a larger number of clients. This makes it harder for websites to identify and block our requests based on a consistent browser version.
 
 </details>
-
 
 ### Properties
 
@@ -312,30 +323,51 @@ with hrequests.Session() as session:
 
 ## Concurrent & Lazy Requests
 
-### "Lazy" Requests
+### Nohup Requests
 
-Adding the `no_pause=True` keyword argument will return a `LazyTLSRequest` object. This will send the request immediately, but doesn't wait for the response to be ready until an attribute of the response is accessed.
+Similar to Unix's nohup command, `nohup` requests are sent in the background.
 
+Adding the `nohup=True` keyword argument will return a `LazyTLSRequest` object. This will send the request immediately, but doesn't wait for the response to be ready until an attribute of the response is accessed.
 
 ```py
-resp1 = hrequests.get('https://www.google.com/', no_pause=True)
-resp2 = hrequests.get('https://www.google.com/', no_pause=True)
-
-# resp1 and resp2 are sent concurrently
-
-print('Resp 1:', resp1.reason)  # will pause for resp1 to finish, if it hasn't already
-print('Resp 2:', resp2.reason)  # will pause for resp2 to finish, if it hasn't already
+resp1 = hrequests.get('https://www.google.com/', nohup=True)
+resp2 = hrequests.get('https://www.google.com/', nohup=True)
 ```
 
-This is useful for sending multiple requests concurrently, but only waiting for the response when it is needed.
+`resp1` and `resp2` are sent concurrently. They will _never_ pause the current thread, unless an attribute of the response is accessed:
 
-Note that `no_pause` uses gevent as it's backend. Use `no_pause_threadsafe` when running across multiple threads.
+```py
+print('Resp 1:', resp1.reason)  # will wait for resp1 to finish, if it hasn't already
+print('Resp 2:', resp2.reason)  # will wait for resp2 to finish, if it hasn't already
+```
 
+This is useful for sending requests in the background that aren't needed until later.
 
-### Grequests-style Async Requests
+Note: In `nohup`, a new thread is created for each request. For larger scale concurrency, please consider the following:
 
+### Easy Concurrency
 
-The method `async_get` will create an unsent request.
+You can pass an array/iterator of links to the request methods to send them concurrently. This wraps around [`hrequests.map`](https://github.com/daijro/hrequests#map):
+
+```py
+>>> hrequests.get(['https://google.com/', 'https://github.com/'])
+(<Response [200]>, <Response [200]>)
+```
+
+This also works with `nohup`:
+
+```py
+>>> resps = hrequests.get(['https://google.com/', 'https://github.com/'], nohup=True)
+>>> resps
+(<LazyResponse[Pending]>, <LazyResponse[Pending]>)
+>>> # Sometime later...
+>>> resps
+(<Response [200]>, <Response [200]>)
+```
+
+### Grequests-style Concurrency
+
+The methods `async_get`, `async_post`, etc. will create an unsent request. This levereges gevent, making it _blazing fast_.
 
 <details>
 <summary>Parameters</summary>
@@ -354,7 +386,7 @@ Parameters:
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (int, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
-    no_pause (bool, optional): Run the request in the background. Defaults to False.
+    nohup (bool, optional): Run the request in the background. Defaults to False.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
@@ -368,6 +400,7 @@ Async requests are evaluated on `hrequests.map`, `hrequests.imap`, or `hrequests
 This functionality is similar to [grequests](https://github.com/spyoungtech/grequests). Unlike grequests, [monkey patching](https://www.gevent.org/api/gevent.monkey.html) is not required because this does not rely on the standard python SSL library.
 
 Create a set of unsent Requests:
+
 ```py
 reqs = [
     hrequests.async_get('https://www.google.com/'),
@@ -399,6 +432,7 @@ Parameters:
 Returns:
     A list of Response objects.
 ```
+
 </details>
 
 #### imap
@@ -427,6 +461,7 @@ Parameters:
 Yields:
     Response objects.
 ```
+
 </details>
 
 `imap_enum` returns a generator that yields a tuple of `(index, response)` as they come in. The `index` is the index of the request in the original list:
@@ -456,6 +491,7 @@ Parameters:
 Yields:
     (index, Response) tuples.
 ```
+
 </details>
 
 #### Exception Handling
@@ -477,17 +513,16 @@ To handle timeouts or any other exception during the connection of the request, 
 
 The value returned by the exception handler will be used in place of the response in the result list:
 
-
 <hr width=50>
 
 ## HTML Parsing
 
 HTML scraping uses PyQuery, which is ~7x faster than bs4. This functionality is based of [requests-html](https://github.com/psf/requests-html).
 
-| Library | Time (1e5 trials) |
-| --- | --- |
-| BeautifulSoup4 | 52.6 |
-| PyQuery | 7.5 |
+| Library        | Time (1e5 trials) |
+| -------------- | ----------------- |
+| BeautifulSoup4 | 52.6              |
+| PyQuery        | 7.5               |
 
 The HTML parser can be accessed through the `html` attribute of the response object:
 
@@ -527,6 +562,7 @@ Select an element using a CSS Selector:
 ```py
 >>> about = resp.html.find('#about')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -555,13 +591,16 @@ for more details.
 If ``first`` is ``True``, only returns the first
 :class:`Element <Element>` found.
 ```
+
 </details>
 
 XPath is also supported:
+
 ```py
 >>> resp.html.xpath('/html/body/div[1]/a')
 [<Element 'a' class=('px-2', 'py-4', 'show-on-focus', 'js-skip-to-content') href='#start-of-content' tabindex='1'>]
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -570,7 +609,7 @@ Given an XPath selector, returns a list of Element objects or a single one.
 
 Parameters:
     selector (str): XPath Selector to use.
-    clean (bool, optional): Whether or not to sanitize the found HTML of <script> and <style> tags. Defaults to 
+    clean (bool, optional): Whether or not to sanitize the found HTML of <script> and <style> tags. Defaults to
     first (bool, optional): Whether or not to return just the first result. Defaults to False.
     _encoding (str, optional): The encoding format. Defaults to None.
 
@@ -582,6 +621,7 @@ See W3School's XPath Examples for more details.
 
 If first is True, only returns the first Element found.
 ```
+
 </details>
 
 ### Introspecting elements
@@ -612,7 +652,6 @@ Get an Element's raw HTML:
 '<li aria-haspopup="true" class="tier-1 element-1 " id="about">\n<a class="" href="/about/" title="">About</a>\n<ul aria-hidden="true" class="subnav menu" role="menu">\n<li class="tier-2 element-1" role="treeitem"><a href="/about/apps/" title="">Applications</a></li>\n<li class="tier-2 element-2" role="treeitem"><a href="/about/quotes/" title="">Quotes</a></li>\n<li class="tier-2 element-3" role="treeitem"><a href="/about/gettingstarted/" title="">Getting Started</a></li>\n<li class="tier-2 element-4" role="treeitem"><a href="/about/help/" title="">Help</a></li>\n<li class="tier-2 element-5" role="treeitem"><a href="http://brochure.getpython.info/" title="">Python Brochure</a></li>\n</ul>\n</li>'
 ```
 
-
 Select Elements within Elements:
 
 ```py
@@ -629,11 +668,9 @@ Search for links within an element:
 {'http://brochure.getpython.info/', 'https://www.python.org/about/gettingstarted/', 'https://www.python.org/about/', 'https://www.python.org/about/quotes/', 'https://www.python.org/about/help/', 'https://www.python.org/about/apps/'}
 ```
 
-
 <hr width=50>
 
 ## Browser Automation
-
 
 You can spawn a `BrowserSession` instance by calling it:
 
@@ -655,6 +692,7 @@ Parameters:
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 ```
+
 </details>
 
 `BrowserSession` is entirely safe to use across threads.
@@ -702,6 +740,7 @@ Parameters:
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 ```
+
 </details>
 
 ### Properties
@@ -741,9 +780,11 @@ Parsing HTML from the page content:
 ```
 
 Take a screenshot of the page:
+
 ```py
 page.screenshot('screenshot.png')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -752,6 +793,7 @@ Parameters:
     path (str): Path to save screenshot to
     full_page (bool): Whether to take a screenshot of the full scrollable page
 ```
+
 </details>
 
 ### Navigate the browser
@@ -774,11 +816,13 @@ Navigate through page history:
 ### Controlling elements
 
 Click an element:
+
 ```py
 >>> page.click('#my-button')
 # or through the html parser
 >>> page.html.find('#my-button').click()
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -790,14 +834,17 @@ Parameters:
     timeout (float, optional): Timeout in seconds. Defaults to 30.
     wait_after (bool, optional): Wait for a page event before continuing. Defaults to True.
 ```
+
 </details>
 
 Hover over an element:
+
 ```py
 >>> page.hover('.dropbtn')
 # or through the html parser
 >>> page.html.find('.dropbtn').hover()
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -807,14 +854,17 @@ Parameters:
     modifiers (List[Literal['Alt', 'Control', 'Meta', 'Shift']], optional): Modifier keys to press. Defaults to None.
     timeout (float, optional): Timeout in seconds. Defaults to 90.
 ```
+
 </details>
 
 Type text into an element:
+
 ```py
 >>> page.type('#my-input', 'Hello world!')
 # or through the html parser
 >>> page.html.find('#my-input').type('Hello world!')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -825,14 +875,17 @@ Parameters:
     delay (int, optional): Delay between keypresses in ms. On mock_human, this is randomized by 50%. Defaults to 50.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
 ```
+
 </details>
 
 Drag and drop an element:
+
 ```py
 >>> page.dragTo('#source-selector', '#target-selector')
 # or through the html parser
 >>> page.html.find('#source-selector').dragTo('#target-selector')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -847,15 +900,18 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 ### Check page elements
 
 Check if a selector is visible and enabled:
+
 ```py
 >>> page.isVisible('#my-selector'): bool
 >>> page.isEnabled('#my-selector'): bool
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -863,12 +919,15 @@ Check if a selector is visible and enabled:
 Parameters:
     selector (str): Selector to check
 ```
+
 </details>
 
 Evaluate and return a script:
+
 ```py
 >>> page.evaluate('selector => document.querySelector(selector).checked', '#my-selector')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -877,6 +936,7 @@ Parameters:
     script (str): Javascript to evaluate in the page
     arg (str, optional): Argument to pass into the javascript function
 ```
+
 </details>
 
 ### Awaiting events
@@ -895,6 +955,7 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 Wait for a script or function to return a truthy value:
@@ -915,6 +976,7 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 Wait for the URL to match:
@@ -922,6 +984,7 @@ Wait for the URL to match:
 ```py
 >>> page.awaitUrl(re.compile(r'https?://www\.google\.com/.*'), timeout=10)
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -933,6 +996,7 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 Wait for an element to exist on the page:
@@ -940,6 +1004,7 @@ Wait for an element to exist on the page:
 ```py
 >>> page.awaitSelector('#my-selector')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -951,6 +1016,7 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 Wait for an element to be enabled:
@@ -958,6 +1024,7 @@ Wait for an element to be enabled:
 ```py
 >>> page.awaitEnabled('#my-selector')
 ```
+
 <details>
 <summary>Parameters</summary>
 
@@ -969,6 +1036,7 @@ Parameters:
 Throws:
     hrequests.exceptions.BrowserTimeoutException: If timeout is reached
 ```
+
 </details>
 
 ### Adding Chrome extensions
@@ -984,15 +1052,16 @@ Chrome extensions can be easily imported into a browser session. Some potentiall
 Extensions are added with the `extensions` parameter.
 
 - This can be an list of absolute paths to unpacked extensions:
-    ```py
-    with resp.render(extensions=['C:\\extentions\\hektcaptcha', 'C:\\extentions\\ublockorigin']):
-    ```
+
+  ```py
+  with resp.render(extensions=['C:\\extentions\\hektcaptcha', 'C:\\extentions\\ublockorigin']):
+  ```
 
 - Or a folder containing the unpacked extensions:
-    ```py
-    with resp.render(extensions='C:\\extentions'):
-    ```
-    Note that these need to be *unpacked* extensions. You can unpack a `.crx` file by changing the file extension to `.zip` and extracting the contents.
+  ```py
+  with resp.render(extensions='C:\\extentions'):
+  ```
+  Note that these need to be _unpacked_ extensions. You can unpack a `.crx` file by changing the file extension to `.zip` and extracting the contents.
 
 Here is an usage example of using a captcha solver:
 
@@ -1007,6 +1076,7 @@ Here is an usage example of using a captcha solver:
 Requests can also be sent within browser sessions. These operate the same as the standard `hrequests.request`, and will use the browser's cookies and headers. The `BrowserSession` cookies will be updated with each request.
 
 This returns a normal `Response` object:
+
 ```py
 >>> resp = page.get('https://duckduckgo.com')
 ```
@@ -1021,7 +1091,7 @@ Parameters:
     data (Union[str, dict], optional): Data to send to request. Defaults to None.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Defaults to None.
     form (dict, optional): Form data to send with the request. Defaults to None.
-    multipart (dict, optional): Multipart data to send with the request. Defaults to None. 
+    multipart (dict, optional): Multipart data to send with the request. Defaults to None.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     max_redirects (int, optional): Maximum number of redirects to follow. Defaults to None.
@@ -1032,6 +1102,7 @@ Throws:
 Returns:
     hrequests.response.Response: Response object
 ```
+
 </details>
 
 Other methods include `post`, `put`, `delete`, `head`, and `patch`.
@@ -1047,12 +1118,14 @@ The `BrowserSession` object must be closed when finished. This will close the br
 Note that this is automatically done when using a context manager.
 
 Session cookies are updated:
+
 ```py
 >>> session.cookies: RequestsCookieJar
 <RequestsCookieJar[Cookie(version=0, name='MUID', value='123456789', port=None, port_specified=False, domain='.bing.com', domain_specified=True, domain_initial_dot=True...
 ```
 
 Response data is updated:
+
 ```py
 >>> resp.url: str
 'https://www.bing.com/?toWww=1&redig=823778234657823652376438'
@@ -1072,6 +1145,7 @@ You can use `.render` to spawn a `BrowserSession` object directly from a url:
 ```
 
 Make sure to close all `BrowserSession` objects when done!
+
 ```py
 >>> page.close()
 ```

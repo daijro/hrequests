@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from json import detect_encoding
-from typing import List, Optional, Union, Iterable
+from typing import Iterable, List, Optional, Union
+from urllib.parse import ParseResult, urlparse
 
 import orjson
 
@@ -12,7 +13,6 @@ from hrequests.exceptions import ClientException
 
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict, FileUtils
-from urllib.parse import urlparse, ParseResult
 
 
 class ProcessResponse:
@@ -41,9 +41,8 @@ class ProcessResponse:
             # convert files to multipart/form-data
             kwargs['data'], content_type = FileUtils.encode_files(files, data)
             # content_type needs to be set to Content-Type header
-            # if headers is None, append Content-Type to the existing session headers
             if headers is None:
-                headers = self.session.headers.copy()
+                headers = {}
             # else if headers were provided, append Content-Type to those
             elif isinstance(headers, dict):
                 headers = CaseInsensitiveDict(headers)
@@ -97,7 +96,7 @@ class ProcessResponse:
             path=parsed_red.path,
             params=parsed_red.params,
             query=parsed_red.query,
-            fragment=parsed_red.fragment
+            fragment=parsed_red.fragment,
         ).geturl()
 
     def generate_history(self):
