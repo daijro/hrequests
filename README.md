@@ -65,7 +65,7 @@ pip install -U hrequests[all]
 python -m playwright install chromium
 ```
 
-Other depedencies will be downloaded on the first import:
+Other dependencies will be downloaded on the first import:
 
 ```py
 >>> import hrequests
@@ -282,7 +282,7 @@ By adding more randomization to our headers, we can make our requests appear to 
 
 ### Properties
 
-Here is a simple get request. This is a wraper around `hrequests.get`. The only difference is that the session cookies are updated with each request. Creating sessions are recommended for making multiple requests to the same domain.
+Here is a simple get request. This is a wrapper around `hrequests.get`. The only difference is that the session cookies are updated with each request. Creating sessions are recommended for making multiple requests to the same domain.
 
 ```py
 >>> resp = session.get('https://www.google.com/')
@@ -426,7 +426,7 @@ Concurrently converts a list of Requests to Responses.
 Parameters:
     requests - a collection of Request objects.
     size - Specifies the number of requests to make at a time. If None, no throttling occurs.
-    exception_handler - Callback function, called when exception occured. Params: Request, Exception
+    exception_handler - Callback function, called when exception occurred. Params: Request, Exception
     timeout - Gevent joinall timeout in seconds. (Note: unrelated to requests timeout)
 
 Returns:
@@ -1054,7 +1054,7 @@ Extensions are added with the `extensions` parameter.
 - This can be an list of absolute paths to unpacked extensions:
 
   ```py
-  with resp.render(extensions=['C:\\extentions\\hektcaptcha', 'C:\\extentions\\ublockorigin']):
+  with resp.render(extensions=['C:\\extensions\\hektcaptcha', 'C:\\extensions\\ublockorigin']):
   ```
 
 - Or a folder containing the unpacked extensions:
@@ -1066,7 +1066,7 @@ Extensions are added with the `extensions` parameter.
 Here is an usage example of using a captcha solver:
 
 ```py
->>> with hrequests.render('https://accounts.hcaptcha.com/demo', extensions=['C:\\extentions\\hektcaptcha']) as page:
+>>> with hrequests.render('https://accounts.hcaptcha.com/demo', extensions=['C:\\extensions\\hektcaptcha']) as page:
 ...     page.awaitSelector('.hcaptcha-success')  # wait for captcha to finish
 ...     page.click('input[type=submit]')
 ```

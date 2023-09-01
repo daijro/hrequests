@@ -85,5 +85,5 @@ class Mouse:
         for x, y in zip(final_x_points, final_y_points):
             await page.mouse._move(x, y)
             await page.wait_for_timeout(random.randint(20, 60))
-        # Set LastX and LastY cause Playwright doesnt have mouse.current_location
+        # Set LastX and LastY cause Playwright doesn't have mouse.current_location
         Mouse.last_x, Mouse.last_y = final_x_points[-1], final_y_points[-1]

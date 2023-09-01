@@ -55,31 +55,31 @@ class ProxyManager(AsyncObject):
         await self.httpx.aclose()
         await self.phttpx.aclose()
 
-    def split_helper(self, splitted) -> None:
-        if not any(_.isdigit() for _ in splitted):
+    def split_helper(self, split) -> None:
+        if not any(_.isdigit() for _ in split):
             raise SplitError("No ProxyPort could be detected")
-        if splitted[1].isdigit():
-            self.ip, self.port, self.username, self.password = splitted
-        elif splitted[3].isdigit():
-            self.username, self.password, self.ip, self.port = splitted
+        if split[1].isdigit():
+            self.ip, self.port, self.username, self.password = split
+        elif split[3].isdigit():
+            self.username, self.password, self.ip, self.port = split
         else:
-            raise SplitError(f"Proxy Format ({self.proxy}) isnt supported")
+            raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
 
     def split_proxy(self) -> None:
-        splitted = self.proxy.split(":")
-        if len(splitted) == 2:
-            self.ip, self.port = splitted
-        elif len(splitted) == 3:
+        split = self.proxy.split(":")
+        if len(split) == 2:
+            self.ip, self.port = split
+        elif len(split) == 3:
             if "@" in self.proxy:
                 helper = [_.split(":") for _ in self.proxy.split("@")]
-                splitted = [x for y in helper for x in y]
-                self.split_helper(splitted)
+                split = [x for y in helper for x in y]
+                self.split_helper(split)
             else:
-                raise SplitError(f"Proxy Format ({self.proxy}) isnt supported")
-        elif len(splitted) == 4:
-            self.split_helper(splitted)
+                raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
+        elif len(split) == 4:
+            self.split_helper(split)
         else:
-            raise SplitError(f"Proxy Format ({self.proxy}) isnt supported")
+            raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
 
     async def check_proxy(self) -> None:
         try:

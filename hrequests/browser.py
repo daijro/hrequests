@@ -183,7 +183,7 @@ class BrowserSession:
             # check if the attribute (with a leading _) exists
             attr = self.__getattribute__(f'_{name}')
         except AttributeError:
-            # if it doesnt, raise an error
+            # if it doesn't, raise an error
             raise AttributeError(
                 "'{obj_name}' object has no attribute '{attr_name}'".format(
                     obj_name=self.__class__.__name__, attr_name=name
