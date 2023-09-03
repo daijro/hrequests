@@ -454,6 +454,10 @@ class BrowserSession:
         return hrequests.parser.HTML(
             session=self, url=self.url, html=self.content, default_encoding='utf-8'
         )
+    
+    @property
+    def find(self) -> Callable:
+        return self.html.find
 
     '''
     Network request functions

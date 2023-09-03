@@ -304,10 +304,12 @@ class RequestsCookieJar(CookieJar, MutableMapping):
         :return: cookie.value
         """
         for cookie in iter(self):
-            if cookie.name == name:
-                if domain is None or cookie.domain == domain:
-                    if path is None or cookie.path == path:
-                        return cookie.value
+            if (
+                cookie.name == name
+                and (domain is None or cookie.domain == domain)
+                and (path is None or cookie.path == path)
+            ):
+                return cookie.value
 
         raise KeyError(f"name={name!r}, domain={domain!r}, path={path!r}")
 
@@ -325,16 +327,16 @@ class RequestsCookieJar(CookieJar, MutableMapping):
         """
         toReturn = None
         for cookie in iter(self):
-            if cookie.name == name:
-                if domain is None or cookie.domain == domain:
-                    if path is None or cookie.path == path:
-                        if toReturn is not None:
-                            # if there are multiple cookies that meet passed in criteria
-                            raise CookieConflictError(
-                                f"There are multiple cookies with name, {name!r}"
-                            )
-                        # we will eventually return this as long as no cookie conflict
-                        toReturn = cookie.value
+            if (
+                cookie.name == name
+                and (domain is None or cookie.domain == domain)
+                and (path is None or cookie.path == path)
+            ):
+                if toReturn is not None:
+                    # if there are multiple cookies that meet passed in criteria
+                    raise CookieConflictError(f"There are multiple cookies with name, {name!r}")
+                # we will eventually return this as long as no cookie conflict
+                toReturn = cookie.value
 
         if toReturn:
             return toReturn

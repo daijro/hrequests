@@ -1,13 +1,12 @@
-import base64
 import ctypes
-import urllib.parse
 import uuid
-from typing import Optional, Union
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Union
+from urllib.parse import urlencode
 
 from orjson import dumps, loads
 
 import hrequests
-from .toolbelt import CaseInsensitiveDict
 
 from .cffi import freeMemory, request
 from .cookies import (
@@ -19,6 +18,12 @@ from .cookies import (
     merge_cookies,
 )
 from .exceptions import ClientException
+from .toolbelt import CaseInsensitiveDict
+
+try:
+    import turbob64 as base64
+except ImportError:
+    import base64
 
 '''
 TLSClient heavily based on https://github.com/FlorianREGAZ/Python-Tls-Client
@@ -26,248 +31,219 @@ Copyright (c) 2022 Florian Zager
 '''
 
 
+@dataclass
 class TLSClient:
-    def __init__(
-        self,
-        client_identifier: Optional[str] = None,
-        ja3_string: Optional[str] = None,
-        h2_settings: Optional[dict] = None,  # Optional[dict[str, int]]
-        h2_settings_order: Optional[list] = None,  # Optional[list[str]]
-        supported_signature_algorithms: Optional[list] = None,  # Optional[list[str]]
-        supported_delegated_credentials_algorithms: Optional[list] = None,  # Optional[list[str]]
-        supported_versions: Optional[list] = None,  # Optional[list[str]]
-        key_share_curves: Optional[list] = None,  # Optional[list[str]]
-        cert_compression_algo: Optional[str] = None,
-        additional_decode: Optional[str] = None,
-        pseudo_header_order: Optional[list] = None,  # Optional[list[str]
-        connection_flow: Optional[int] = None,
-        priority_frames: Optional[list] = None,
-        header_order: Optional[list] = None,  # Optional[list[str]]
-        header_priority: Optional[dict] = None,  # Optional[list[str]]
-        random_tls_extension_order: bool = True,
-        force_http1: bool = False,
-        catch_panics: bool = False,
-        debug: bool = False,
-    ) -> None:
+    client_identifier: Optional[str] = None
+    random_tls_extension_order: bool = True
+    force_http1: bool = False
+    catch_panics: bool = False
+    debug: bool = False
+    proxies: Optional[dict] = None
+    cookies: Optional[RequestsCookieJar] = None
+
+    # custom TLS profile
+    ja3_string: Optional[str] = None
+    h2_settings: Optional[Dict[str, int]] = None
+    h2_settings_order: Optional[List[str]] = None
+    supported_signature_algorithms: Optional[List[str]] = None
+    supported_delegated_credentials_algorithms: Optional[List[str]] = None
+    supported_versions: Optional[List[str]] = None
+    key_share_curves: Optional[List[str]] = None
+    cert_compression_algo: Optional[str] = None
+    additional_decode: Optional[str] = None
+    pseudo_header_order: Optional[List[str]] = None
+    connection_flow: Optional[int] = None
+    priority_frames: Optional[list] = None
+    header_order: Optional[List[str]] = None
+    header_priority: Optional[List[str]] = None
+
+    '''
+    Synopsis:
+    
+    self.client_identifier examples:
+    - Chrome > chrome_103, chrome_104, chrome_105, chrome_106
+    - Firefox > firefox_102, firefox_104
+    - Opera > opera_89, opera_90
+    - Safari > safari_15_3, safari_15_6_1, safari_16_0
+    - iOS > safari_ios_15_5, safari_ios_15_6, safari_ios_16_0
+    - iPadOS > safari_ios_15_6
+
+    self.ja3_string example:
+    - 771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0
+
+    HTTP2 Header Frame Settings
+    - HEADER_TABLE_SIZE
+    - SETTINGS_ENABLE_PUSH
+    - MAX_CONCURRENT_STREAMS
+    - INITIAL_WINDOW_SIZE
+    - MAX_FRAME_SIZE
+    - MAX_HEADER_LIST_SIZE
+
+    self.h2_settings example:
+    {
+        "HEADER_TABLE_SIZE": 65536,
+        "MAX_CONCURRENT_STREAMS": 1000,
+        "INITIAL_WINDOW_SIZE": 6291456,
+        "MAX_HEADER_LIST_SIZE": 262144
+    }
+
+    HTTP2 Header Frame Settings Order
+    self.h2_settings_order example:
+    [
+        "HEADER_TABLE_SIZE",
+        "MAX_CONCURRENT_STREAMS",
+        "INITIAL_WINDOW_SIZE",
+        "MAX_HEADER_LIST_SIZE"
+    ]
+
+    Supported Signature Algorithms
+    - PKCS1WithSHA256
+    - PKCS1WithSHA384
+    - PKCS1WithSHA512
+    - PSSWithSHA256
+    - PSSWithSHA384
+    - PSSWithSHA512
+    - ECDSAWithP256AndSHA256
+    - ECDSAWithP384AndSHA384
+    - ECDSAWithP521AndSHA512
+    - PKCS1WithSHA1
+    - ECDSAWithSHA1
+
+    self.supported_signature_algorithms example:
+    [
+        "ECDSAWithP256AndSHA256",
+        "PSSWithSHA256",
+        "PKCS1WithSHA256",
+        "ECDSAWithP384AndSHA384",
+        "PSSWithSHA384",
+        "PKCS1WithSHA384",
+        "PSSWithSHA512",
+        "PKCS1WithSHA512",
+    ]
+
+    Supported Delegated Credentials Algorithms
+    - PKCS1WithSHA256
+    - PKCS1WithSHA384
+    - PKCS1WithSHA512
+    - PSSWithSHA256
+    - PSSWithSHA384
+    - PSSWithSHA512
+    - ECDSAWithP256AndSHA256
+    - ECDSAWithP384AndSHA384
+    - ECDSAWithP521AndSHA512
+    - PKCS1WithSHA1
+    - ECDSAWithSHA1
+
+    self.supported_delegated_credentials_algorithms example:
+    [
+        "ECDSAWithP256AndSHA256",
+        "PSSWithSHA256",
+        "PKCS1WithSHA256",
+        "ECDSAWithP384AndSHA384",
+        "PSSWithSHA384",
+        "PKCS1WithSHA384",
+        "PSSWithSHA512",
+        "PKCS1WithSHA512",
+    ]
+
+    Supported Versions
+    - GREASE
+    - 1.3
+    - 1.2
+    - 1.1
+    - 1.0
+
+    self.supported_versions example:
+    [
+        "GREASE",
+        "1.3",
+        "1.2"
+    ]
+
+    Key Share Curves
+    - GREASE
+    - P256
+    - P384
+    - P521
+    - X25519
+
+    self.key_share_curves example:
+    [
+        "GREASE",
+        "X25519"
+    ]
+
+    Cert Compression Algorithm
+    self.cert_compression_algo examples: "zlib", "brotli", "zstd"
+
+    Additional Decode
+    Make sure the go code decodes the response body once explicit by provided algorithm.
+    self.additional_decode examples: null, "gzip", "br", "deflate"
+
+    Pseudo Header Order (:authority, :method, :path, :scheme)
+    self.pseudo_header_order examples:
+    [
+        ":method",
+        ":authority",
+        ":scheme",
+        ":path"
+    ]
+
+    Connection Flow / Window Size Increment
+    self.connection_flow example:
+    15663105
+
+    self.priority_frames example:
+    [
+        {
+        "streamID": 3,
+        "priorityParam": {
+            "weight": 201,
+            "streamDep": 0,
+            "exclusive": false
+        }
+        },
+        {
+        "streamID": 5,
+        "priorityParam": {
+            "weight": 101,
+            "streamDep": false,
+            "exclusive": 0
+        }
+        }
+    ]
+
+    Order of your headers
+    self.header_order example:
+    [
+        "key1",
+        "key2"
+    ]
+
+    Header Priority
+    self.header_priority example:
+    {
+        "streamDep": 1,
+        "exclusive": true,
+        "weight": 1
+    }
+    
+    Proxies
+    self.proxies usage:
+    {
+        "http": "http://user:pass@ip:port",
+        "https": "http://user:pass@ip:port"
+    }
+    '''
+
+    def __post_init__(self) -> None:
         self._session_id: str = str(uuid.uuid4())
-        # - Standard Settings
 
-        # Case-insensitive dictionary of headers, send on each request
         self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
-
-        # Example:
-        # {
-        #     "http": "http://user:pass@ip:port",
-        #     "https": "http://user:pass@ip:port"
-        # }
-        self.proxies: dict = {}
+        self.proxies: dict = self.proxies or {}
 
         # CookieJar containing all currently outstanding cookies set on this session
-        self.cookies: RequestsCookieJar = RequestsCookieJar()
-
-        # - Advanced Settings
-
-        # Examples:
-        # Chrome > chrome_103, chrome_104, chrome_105, chrome_106
-        # Firefox > firefox_102, firefox_104
-        # Opera > opera_89, opera_90
-        # Safari > safari_15_3, safari_15_6_1, safari_16_0
-        # iOS > safari_ios_15_5, safari_ios_15_6, safari_ios_16_0
-        # iPadOS > safari_ios_15_6
-        self.client_identifier = client_identifier
-
-        # Set JA3 > TLSVersion, Ciphers, Extensions, EllipticCurves, EllipticCurvePointFormats
-        # Example:
-        # 771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0
-        self.ja3_string = ja3_string
-
-        # HTTP2 Header Frame Settings
-        # Possible Settings:
-        # HEADER_TABLE_SIZE
-        # SETTINGS_ENABLE_PUSH
-        # MAX_CONCURRENT_STREAMS
-        # INITIAL_WINDOW_SIZE
-        # MAX_FRAME_SIZE
-        # MAX_HEADER_LIST_SIZE
-        #
-        # Example:
-        # {
-        #     "HEADER_TABLE_SIZE": 65536,
-        #     "MAX_CONCURRENT_STREAMS": 1000,
-        #     "INITIAL_WINDOW_SIZE": 6291456,
-        #     "MAX_HEADER_LIST_SIZE": 262144
-        # }
-        self.h2_settings = h2_settings
-
-        # HTTP2 Header Frame Settings Order
-        # Example:
-        # [
-        #     "HEADER_TABLE_SIZE",
-        #     "MAX_CONCURRENT_STREAMS",
-        #     "INITIAL_WINDOW_SIZE",
-        #     "MAX_HEADER_LIST_SIZE"
-        # ]
-        self.h2_settings_order = h2_settings_order
-
-        # Supported Signature Algorithms
-        # Possible Settings:
-        # PKCS1WithSHA256
-        # PKCS1WithSHA384
-        # PKCS1WithSHA512
-        # PSSWithSHA256
-        # PSSWithSHA384
-        # PSSWithSHA512
-        # ECDSAWithP256AndSHA256
-        # ECDSAWithP384AndSHA384
-        # ECDSAWithP521AndSHA512
-        # PKCS1WithSHA1
-        # ECDSAWithSHA1
-        #
-        # Example:
-        # [
-        #     "ECDSAWithP256AndSHA256",
-        #     "PSSWithSHA256",
-        #     "PKCS1WithSHA256",
-        #     "ECDSAWithP384AndSHA384",
-        #     "PSSWithSHA384",
-        #     "PKCS1WithSHA384",
-        #     "PSSWithSHA512",
-        #     "PKCS1WithSHA512",
-        # ]
-        self.supported_signature_algorithms = supported_signature_algorithms
-
-        # Supported Delegated Credentials Algorithms
-        # Possible Settings:
-        # PKCS1WithSHA256
-        # PKCS1WithSHA384
-        # PKCS1WithSHA512
-        # PSSWithSHA256
-        # PSSWithSHA384
-        # PSSWithSHA512
-        # ECDSAWithP256AndSHA256
-        # ECDSAWithP384AndSHA384
-        # ECDSAWithP521AndSHA512
-        # PKCS1WithSHA1
-        # ECDSAWithSHA1
-        #
-        # Example:
-        # [
-        #     "ECDSAWithP256AndSHA256",
-        #     "PSSWithSHA256",
-        #     "PKCS1WithSHA256",
-        #     "ECDSAWithP384AndSHA384",
-        #     "PSSWithSHA384",
-        #     "PKCS1WithSHA384",
-        #     "PSSWithSHA512",
-        #     "PKCS1WithSHA512",
-        # ]
-        self.supported_delegated_credentials_algorithms = supported_delegated_credentials_algorithms
-
-        # Supported Versions
-        # Possible Settings:
-        # GREASE
-        # 1.3
-        # 1.2
-        # 1.1
-        # 1.0
-        #
-        # Example:
-        # [
-        #     "GREASE",
-        #     "1.3",
-        #     "1.2"
-        # ]
-        self.supported_versions = supported_versions
-
-        # Key Share Curves
-        # Possible Settings:
-        # GREASE
-        # P256
-        # P384
-        # P521
-        # X25519
-        #
-        # Example:
-        # [
-        #     "GREASE",
-        #     "X25519"
-        # ]
-        self.key_share_curves = key_share_curves
-
-        # Cert Compression Algorithm
-        # Examples: "zlib", "brotli", "zstd"
-        self.cert_compression_algo = cert_compression_algo
-
-        # Additional Decode
-        # Make sure the go code decodes the response body once explicit by provided algorithm.
-        # Examples: null, "gzip", "br", "deflate"
-        self.additional_decode = additional_decode
-
-        # Pseudo Header Order (:authority, :method, :path, :scheme)
-        # Example:
-        # [
-        #     ":method",
-        #     ":authority",
-        #     ":scheme",
-        #     ":path"
-        # ]
-        self.pseudo_header_order = pseudo_header_order
-
-        # Connection Flow / Window Size Increment
-        # Example:
-        # 15663105
-        self.connection_flow = connection_flow
-
-        # Example:
-        # [
-        #   {
-        #     "streamID": 3,
-        #     "priorityParam": {
-        #       "weight": 201,
-        #       "streamDep": 0,
-        #       "exclusive": false
-        #     }
-        #   },
-        #   {
-        #     "streamID": 5,
-        #     "priorityParam": {
-        #       "weight": 101,
-        #       "streamDep": false,
-        #       "exclusive": 0
-        #     }
-        #   }
-        # ]
-        self.priority_frames = priority_frames
-
-        # Order of your headers
-        # Example:
-        # [
-        #   "key1",
-        #   "key2"
-        # ]
-        self.header_order = header_order
-
-        # Header Priority
-        # Example:
-        # {
-        #   "streamDep": 1,
-        #   "exclusive": true,
-        #   "weight": 1
-        # }
-        self.header_priority = header_priority
-
-        # randomize tls extension order
-        self.random_tls_extension_order = random_tls_extension_order
-
-        # force HTTP1
-        self.force_http1 = force_http1
-
-        # catch panics
-        # avoid the tls client to print the whole stacktrace when a panic (critical go error) happens
-        self.catch_panics = catch_panics
-
-        # debugging
-        self.debug = debug
+        self.cookies: RequestsCookieJar = self.cookies or RequestsCookieJar()
 
     def execute_request(
         self,
@@ -279,7 +255,7 @@ class TLSClient:
         json: Optional[Union[dict, list, str]] = None,
         allow_redirects: bool = False,
         verify: Optional[bool] = None,
-        timeout: Optional[int] = None,
+        timeout: Optional[float] = None,
         proxy: Optional[dict] = None,
     ):
         # Prepare request body - build request body
@@ -290,7 +266,7 @@ class TLSClient:
             request_body = json
             content_type = 'application/json'
         elif data is not None and type(data) not in (str, bytes):
-            request_body = urllib.parse.urlencode(data, doseq=True)
+            request_body = urlencode(data, doseq=True)
             content_type = 'application/x-www-form-urlencoded'
         else:
             request_body = data
@@ -355,7 +331,7 @@ class TLSClient:
             if is_byte_request
             else request_body,
             'requestCookies': cookiejar_to_list(self.cookies),
-            'timeoutSeconds': timeout,
+            'timeoutMilliseconds': int(timeout * 1000),
         }
         if self.client_identifier is None:
             request_payload['customTlsClient'] = {

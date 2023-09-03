@@ -64,7 +64,7 @@ class TLSSession(TLSClient):
         headers: Optional[dict] = None,
         temp: bool = False,
         verify: bool = True,
-        timeout: int = 30,
+        timeout: float = 30,
         *args,
         **kwargs,
     ):
@@ -101,7 +101,7 @@ class TLSSession(TLSClient):
         self.browser: str = browser  # browser name
         self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
-        self.timeout: int = timeout  # default timeout
+        self.timeout: float = timeout  # default timeout
 
         # set headers
         if headers:
@@ -146,7 +146,7 @@ class TLSSession(TLSClient):
         allow_redirects: bool = True,
         history: bool = False,
         verify: Optional[bool] = None,
-        timeout: Optional[int] = None,
+        timeout: Optional[float] = None,
         proxies: Optional[dict] = None,
     ) -> 'hrequests.response.Response':
         """
@@ -163,7 +163,7 @@ class TLSSession(TLSClient):
             allow_redirects (bool, optional): Allow request to redirect. Defaults to True.
             history (bool, optional): Remember request history. Defaults to False.
             verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
-            timeout (int, optional): Timeout in seconds. Defaults to 30.
+            timeout (float, optional): Timeout in seconds. Defaults to 30.
             proxies (dict, optional): Dictionary of proxies. Defaults to None.
 
         Returns:
@@ -290,5 +290,5 @@ class opera(SessionShortcut):
     versions: Tuple[int] = (89, 90)
 
 
-_browsers = {'firefox': firefox, 'chrome': chrome, 'opera': opera}
-_os_set = {'win', 'mac', 'lin'}
+_browsers: dict = {'firefox': firefox, 'chrome': chrome, 'opera': opera}
+_os_set: set = {'win', 'mac', 'lin'}

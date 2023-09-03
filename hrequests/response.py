@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from json import detect_encoding
-from typing import Iterable, List, Optional, Union
-from urllib.parse import ParseResult, urlparse
+from typing import Callable, Iterable, List, Optional, Union
+from urllib.parse import urlparse
 
 import orjson
 
@@ -82,7 +82,10 @@ class ProcessResponse:
 
     @staticmethod
     def _merge_relative(src_url, redir_url):
-        '''merges the netloc of a source url with the path/params/query/fragment of a redirect url'''
+        '''
+        merges the netloc of a source url with the path/params/query/fragment of a redirect url
+        if they weren't provided in the redirect url
+        '''
         parsed_red = urlparse(redir_url)
         # if the redirect url already has a domain and scheme, return with no change
         if parsed_red.netloc and parsed_red.scheme:
@@ -90,14 +93,11 @@ class ProcessResponse:
         # parse the source url
         parsed_src = urlparse(src_url)
         # rebuild with missing netloc and scheme
-        return ParseResult(
-            scheme=parsed_red.scheme or parsed_src.scheme,
-            netloc=parsed_red.netloc or parsed_src.netloc,
-            path=parsed_red.path,
-            params=parsed_red.params,
-            query=parsed_red.query,
-            fragment=parsed_red.fragment,
-        ).geturl()
+        if not parsed_red.scheme:
+            parsed_red.scheme = parsed_src.scheme
+        if not parsed_red.netloc:
+            parsed_red.netloc = parsed_src.netloc
+        return parsed_red.geturl()
 
     def generate_history(self):
         while True:
@@ -117,6 +117,7 @@ class Response:
     Methods:
         json: Returns the response body as json
         render: Renders the response body with BrowserSession
+        find: Shortcut to .html.find
 
     Attributes:
         url (str): Response url
@@ -180,6 +181,10 @@ class Response:
                 session=self.session, url=self.url, html=self.content, default_encoding='utf-8'
             )
         return self._html
+
+    @property
+    def find(self) -> Callable:
+        return self.html.find
 
     @property
     def ok(self) -> bool:
@@ -259,7 +264,6 @@ def parse_header_links(value):
 def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Response:
     '''Builds a Response object'''
     # build headers
-    res_headers = {}
     if res["headers"] is None:
         res_headers = {}
     else:
