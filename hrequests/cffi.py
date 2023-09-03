@@ -1,6 +1,5 @@
 import ctypes
 import os
-import re
 from platform import machine
 from sys import platform
 
@@ -10,41 +9,46 @@ from orjson import loads
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
 
+# map machine architecture to tls-client binary name
+arch_map = {
+    'amd64': 'amd64',
+    'x86_64': 'amd64',
+    'x86': '386',
+    'i686': '386',
+    'i386': '386',
+    'arm64': 'arm64',
+    'aarch64': 'arm64',
+    'armv5l': 'arm-5',
+    'armv6l': 'arm-6',
+    'armv7l': 'arm-7',
+    'ppc64le': 'ppc64le',
+    'riscv64': 'riscv64',
+    's390x': 's390x',
+}
+
 
 class LibraryManager:
     def __init__(self):
         self.parent_path = os.path.join(root_dir, 'bin')
-        self.file_regex = re.compile(self.get_path())
+        self.file_name = self.get_path()
         filename = self.check_library()
         self.full_path = os.path.join(self.parent_path, filename)
 
     @staticmethod
     def get_path():
+        try:
+            arch = arch_map[machine().lower()]
+        except KeyError as e:
+            raise OSError('Your machine architecture is not supported.') from e
         if platform == 'darwin':
-            if machine() == "arm64":
-                return r'.*darwin\-arm64\-.*\.dylib'
-            else:
-                return r'.*darwin\-amd64\-.*\.dylib'
+            return f'darwin-{arch}.dylib'
         elif platform in ('win32', 'cygwin'):
-            if ctypes.sizeof(ctypes.c_voidp) == 8:
-                return r'.*windows\-64\-.*\.dll'
-            else:
-                return r'.*windows\-32\-.*\.dll'
-        if machine() == "aarch64":
-            return r'.*arm64\-.*\.so'
-        if platform == 'linux':
-            # check if alpine
-            os_name_dat = open('/etc/os-release', 'r').read()
-            if not os_name_dat:
-                return r'.*ubuntu\-amd64\-.*\.so'
-            os_name = re.search(r'\sID=(\w+)', os_name_dat)[1]
-            if os_name.lower() == 'alpine':
-                return r'.*alpine\-amd64\-.*\.so'
-        return r'.*ubuntu\-amd64\-.*\.so'
+            return f'windows-{arch}.dll'
+        return f'linux-{arch}.so'
 
     def check_library(self):
         for file in os.listdir(self.parent_path):
-            if self.file_regex.match(file):
+            if file.endswith(self.file_name):
                 return file
         self.download_library()
         return self.check_library()
@@ -55,7 +59,7 @@ class LibraryManager:
         resp = get('https://api.github.com/repos/bogdanfinn/tls-client/releases/latest')
         assets = loads(resp.text)['assets']
         for asset in assets:
-            if self.file_regex.match(asset['name']):
+            if asset['name'].endswith(self.file_name):
                 url = asset['browser_download_url']
                 break
         else:
