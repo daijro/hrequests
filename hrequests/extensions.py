@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import os
@@ -87,3 +88,88 @@ async def activate_exts(page, exts: List[Extension]):
             ".querySelector('label#label input').click()"
         )
     await page.goto('about:blank')
+
+
+class LoadFirefoxAddon:
+    '''
+    Firefox addon loader
+    Based on this Node.js implementation: https://github.com/microsoft/playwright/issues/7297#issuecomment-1211763085
+    '''
+
+    def __init__(self, port, addon_path):
+        self.port: int = port
+        self.addon_path: str = addon_path
+        self.success: bool = False
+        self.buffers: list = []
+        self.remaining_bytes: int = 0
+
+    async def load(self):
+        reader, writer = await asyncio.open_connection('localhost', self.port)
+        writer.write(self._format_message({"to": "root", "type": "getRoot"}))
+        await writer.drain()
+
+        while True:
+            data = await reader.read(100)  # Adjust buffer size as needed
+            if not data:
+                break
+            await self._process_data(writer, data)
+
+        writer.close()
+        await writer.wait_closed()
+        return self.success
+
+    async def _process_data(self, writer, data):
+        while data:
+            if self.remaining_bytes == 0:
+                index = data.find(b':')
+                if index == -1:
+                    self.buffers.append(data)
+                    return
+
+                total_data = b''.join(self.buffers) + data
+                size, _, remainder = total_data.partition(b':')
+
+                try:
+                    self.remaining_bytes = int(size)
+                except ValueError as e:
+                    raise ValueError("Invalid state") from e
+
+                data = remainder
+
+            if len(data) < self.remaining_bytes:
+                self.remaining_bytes -= len(data)
+                self.buffers.append(data)
+                return
+            else:
+                self.buffers.append(data[: self.remaining_bytes])
+                message = orjson.loads(b''.join(self.buffers))
+                self.buffers.clear()
+
+                await self._on_message(writer, message)
+
+                data = data[self.remaining_bytes :]
+                self.remaining_bytes = 0
+
+    async def _on_message(self, writer, message):
+        if "addonsActor" in message:
+            writer.write(
+                self._format_message(
+                    {
+                        "to": message["addonsActor"],
+                        "type": "installTemporaryAddon",
+                        "addonPath": self.addon_path,
+                    }
+                )
+            )
+            await writer.drain()
+
+        if "addon" in message:
+            self.success = True
+            writer.write_eof()
+
+        if "error" in message:
+            writer.write_eof()
+
+    def _format_message(self, data):
+        raw = orjson.dumps(data)
+        return f"{len(raw)}:".encode() + raw

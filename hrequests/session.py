@@ -3,9 +3,8 @@ from random import choice as rchoice
 from sys import modules, stderr
 from typing import Literal, Optional, Tuple, Union
 
-from fake_headers import Headers
-
 import hrequests
+from hrequests.headers import Headers
 from hrequests.reqs import *
 from hrequests.response import ProcessResponse
 
@@ -20,7 +19,7 @@ class TLSSession(TLSClient):
     Session object that sends requests with TLS client.
 
     Args:
-        browser (str): Browser to use [firefox, chrome, opera]
+        browser (str): Browser to use [firefox, chrome]
         client_identifier (str): Identifier for the client
         os (Literal['win', 'mac', 'lin'], optional): OS to use in header [win, mac, lin]
         headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
@@ -59,7 +58,7 @@ class TLSSession(TLSClient):
     def __init__(
         self,
         client_identifier: str,
-        browser: Literal['firefox', 'chrome', 'opera'],
+        browser: Literal['firefox', 'chrome'],
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
         temp: bool = False,
@@ -121,7 +120,7 @@ class TLSSession(TLSClient):
         """
         if os:
             self._os = os
-        self.headers = Headers(browser=self.browser, os=self._os, headers=True).generate()
+        self.headers = CaseInsensitiveDict(Headers(browser=self.browser, os=self._os).generate())
 
     @property
     def os(self) -> str:
@@ -205,7 +204,7 @@ class TLSSession(TLSClient):
 class Session(TLSSession):
     def __init__(
         self,
-        browser: Literal['firefox', 'chrome', 'opera'] = 'chrome',
+        browser: Literal['firefox', 'chrome'] = 'firefox',
         version: Optional[int] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
@@ -214,7 +213,7 @@ class Session(TLSSession):
     ):
         '''
         Parameters:
-            browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'chrome'.
+            browser (Literal['firefox', 'chrome'], optional): Browser to use. Default is 'firefox'.
             version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
             os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
             headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
@@ -274,6 +273,16 @@ class SessionShortcut:
             **kwargs,
         )
 
+    @classmethod
+    def BrowserSession(
+        cls,
+        **kwargs,
+    ):
+        return hrequests.browser.BrowserSession(
+            browser=cls.name,
+            **kwargs,
+        )
+
 
 class firefox(SessionShortcut):
     name: str = 'firefox'
@@ -285,10 +294,5 @@ class chrome(SessionShortcut):
     versions: Tuple[int] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112)
 
 
-class opera(SessionShortcut):
-    name: str = 'opera'
-    versions: Tuple[int] = (89, 90)
-
-
-_browsers: dict = {'firefox': firefox, 'chrome': chrome, 'opera': opera}
+_browsers: dict = {'firefox': firefox, 'chrome': chrome}
 _os_set: set = {'win', 'mac', 'lin'}

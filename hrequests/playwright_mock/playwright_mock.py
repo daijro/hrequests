@@ -1,11 +1,15 @@
-from typing import List, Tuple
+import socket
+from functools import partial
+from typing import Dict, List, Tuple
 
 from async_class import AsyncObject
-from hrequests.playwright_mock import Faker, ProxyManager, context
 from playwright.async_api import async_playwright
 
+from hrequests.extensions import LoadFirefoxAddon
+from hrequests.playwright_mock import Faker, ProxyManager, context
 
-class PlaywrightMock(AsyncObject):
+
+class PlaywrightMockBase(AsyncObject):
     async def __ainit__(
         self,
         headless: bool = False,
@@ -20,26 +24,7 @@ class PlaywrightMock(AsyncObject):
         # launching chromium
         self.main_browser = await self.launch_browser(headless=headless)
 
-    args: Tuple[str] = (
-        '--disable-blink-features=AutomationControlled',
-        '--disable-web-security',
-        '--disable-site-isolation-trials',
-        '--disable-features=CrossSiteDocumentBlockingIfIsolating,'
-        'CrossSiteDocumentBlockingAlways,'
-        'IsolateOrigins,'
-        'site-per-process,'
-        'SharedArrayBuffer',
-    )  # type: ignore
-
-    async def launch_browser(self, headless: bool = False):
-        args: List[str] = list(PlaywrightMock.args)
-        if headless:
-            args.append('--headless=new')
-        if self.extensions:
-            paths = [ext.path for ext in self.extensions]
-            args.extend(f'--load-extension={ext}' for ext in paths)
-            args.append(f'--disable-extensions-except={",".join(paths)}')
-        return await self.playwright.chromium.launch(headless=headless, args=args)
+    args: Tuple[str]
 
     async def stop(self):
         await self.main_browser.close()
@@ -57,3 +42,63 @@ class PlaywrightMock(AsyncObject):
         _browser.faker = _faker
 
         return _browser
+
+
+class ChromeBrowser(PlaywrightMockBase):
+    args: Tuple[str] = (
+        '--disable-blink-features=AutomationControlled',
+        '--disable-web-security',
+        '--disable-site-isolation-trials',
+        '--disable-features=CrossSiteDocumentBlockingIfIsolating,'
+        'CrossSiteDocumentBlockingAlways,'
+        'IsolateOrigins,'
+        'site-per-process,'
+        'SharedArrayBuffer',
+    )  # type: ignore
+
+    async def launch_browser(self, headless: bool = False):
+        args: List[str] = list(self.args)
+        if headless:
+            args.append('--headless=new')
+        if self.extensions:
+            paths = [ext.path for ext in self.extensions]
+            args.extend(f'--load-extension={ext}' for ext in paths)
+            args.append(f'--disable-extensions-except={",".join(paths)}')
+        return await self.playwright.chromium.launch(headless=headless, args=args)
+
+
+class FirefoxBrowser(PlaywrightMockBase):
+    firefox_user_prefs: Dict[str, bool] = {
+        'media.peerconnection.enabled': False,
+        'media.navigator.enabled': False,
+        'privacy.resistFingerprinting': False,
+        'devtools.debugger.remote-enabled': True,
+        'devtools.debugger.prompt-connection': False,
+        'extensions.manifestV3.enabled': True,
+    }
+
+    @staticmethod
+    def get_open_port():
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("", 0))
+        s.listen(1)
+        port = s.getsockname()[1]
+        s.close()
+        return port
+
+    async def launch_browser(self, headless: bool = False):
+        run_cmd = partial(
+            self.playwright.firefox.launch,
+            headless=headless,
+            firefox_user_prefs=self.firefox_user_prefs,
+        )
+        if not self.extensions:
+            return await run_cmd()
+        rdp_port: int = self.get_open_port()
+        pr = await run_cmd(
+            args=('-start-debugger-server', str(rdp_port)),
+        )
+        for ext in self.extensions:
+            ff_addon = LoadFirefoxAddon(rdp_port, ext.path)
+            await ff_addon.load()
+        return pr

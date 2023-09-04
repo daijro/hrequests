@@ -1,12 +1,10 @@
 import asyncio
-import os
 from functools import partial
 from random import choice
 from threading import Thread
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Pattern, Union
 
 from aioprocessing import Queue
-from fake_headers import Headers
 from playwright._impl._api_types import Error as PlaywrightError
 from playwright._impl._api_types import TimeoutError as PlaywrightTimeoutError
 
@@ -14,10 +12,16 @@ import hrequests
 from hrequests.client import CaseInsensitiveDict
 from hrequests.cookies import cookiejar_to_list, list_to_cookiejar
 from hrequests.exceptions import BrowserException, BrowserTimeoutException, JavascriptException
+from hrequests.headers import Headers
 from hrequests.response import Response
 
 from .cookies import RequestsCookieJar
 from .extensions import BuildExtensions, Extension, activate_exts
+
+_browsers = {
+    'firefox': hrequests.FirefoxBrowser,
+    'chrome': hrequests.ChromeBrowser,
+}
 
 
 class BrowserSession:
@@ -28,7 +32,7 @@ class BrowserSession:
         resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
         proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
         mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-        browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
+        browser (Literal['firefox', 'chrome'], optional): Generate useragent headers for a specific browser
         os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
         extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 
@@ -75,7 +79,7 @@ class BrowserSession:
         resp: Optional[hrequests.response.Response] = None,
         proxy_ip: Optional[str] = None,
         mock_human: bool = False,
-        browser: Optional[Literal['firefox', 'chrome', 'opera']] = None,
+        browser: Optional[Literal['firefox', 'chrome']] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         extensions: Optional[Union[str, Iterable[str]]] = None,
     ) -> None:
@@ -90,13 +94,15 @@ class BrowserSession:
         # generating headers
         if session:
             # if a session was provided, use the session user-agent
-            self.browser: str = session.browser
+            self.browser: str = browser or session.browser
             self.ua: str = session.headers.get('User-Agent')
         else:
             # if a browser or os was provided, generate a user-agent and IGNORE session/resp headers
             # only meant to be used when using BrowserSession as a standalone
-            self.browser: str = browser or choice(('firefox', 'chrome', 'opera'))
-            self.ua: str = Headers(browser=self.browser, os=os).generate()['User-Agent']
+            self.browser: str = browser or 'firefox'
+            self.ua: str = Headers(browser=self.browser, os=os, headers=False).generate()[
+                'User-Agent'
+            ]
         # proxy variables
         self.proxy_ip: Optional[str] = proxy_ip
         # browser config
@@ -116,7 +122,7 @@ class BrowserSession:
 
     async def main(self) -> None:
         # build the playwright instance
-        self.client = await hrequests.PlaywrightMock(
+        self.client = await _browsers[self.browser](
             headless=self.headless, extensions=self.extensions
         )
         self.context = await self.client.new_context(
@@ -127,8 +133,8 @@ class BrowserSession:
         )
         # create a new page
         self.page = await self.context.new_page()
-        # activate extensions
-        if self.extensions:
+        # activate extensions on chrome
+        if self.extensions and self.browser == 'chrome':
             await activate_exts(self.page, self.extensions)
         '''
         run the main loop
@@ -454,7 +460,7 @@ class BrowserSession:
         return hrequests.parser.HTML(
             session=self, url=self.url, html=self.content, default_encoding='utf-8'
         )
-    
+
     @property
     def find(self) -> Callable:
         return self.html.find
@@ -590,8 +596,10 @@ def render(
     session: hrequests.session.TLSSession = None,
     mock_human: bool = False,
     extensions: Optional[Union[str, Iterable[str]]] = None,
+    browser: Optional[Literal['firefox', 'chrome']] = None,
 ):
-    assert any((url, session, response)), 'Must provide a url or an existing session, response'
+    assert any((url, session, response is not None)), 'Must provide a url or an existing session, response'
+    
     if proxy:
         proxy = list(proxy.values())[0]
     render_session = BrowserSession(
@@ -601,6 +609,7 @@ def render(
         headless=headless,
         mock_human=mock_human,
         extensions=extensions,
+        browser=browser
     )
     # include headers from session if a TLSSession is provided
     if session and isinstance(session, hrequests.session.TLSSession):

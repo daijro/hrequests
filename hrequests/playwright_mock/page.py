@@ -7,7 +7,7 @@ from . import element_handle, frame, frame_locator, js_handle, locator, mouse
 
 
 async def new_page(inst, context, proxy, faker, **launch_arguments) -> "PlaywrightPage":
-    # Create new Pag
+    # Create new Page
     page = await context._new_page(**launch_arguments)
     # Stealthen the page with custom Stealth Config
     config = playwright_stealth.StealthConfig()

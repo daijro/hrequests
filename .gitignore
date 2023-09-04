@@ -10,6 +10,9 @@ __pycache__/
 *.dll
 *.dylib
 
+# Browser versions
+*_VERSIONS.json
+
 # Distribution / packaging
 .Python
 build/

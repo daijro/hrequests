@@ -8,4 +8,4 @@ from .page import new_page
 
 from .proxy_manager import ProxyManager
 from .faker import Faker
-from .playwright_mock import PlaywrightMock
+from .playwright_mock import ChromeBrowser, FirefoxBrowser

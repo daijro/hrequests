@@ -1,10 +1,11 @@
 from .response import Response, ProcessResponse
-from .session import Session, TLSSession, chrome, firefox, opera
+from .session import Session, TLSSession, chrome, firefox
 from .reqs import *
+from .headers import Headers
 
 # attempt to import headless browsing dependencies
 try:
-    from .playwright_mock import PlaywrightMock
+    from .playwright_mock import ChromeBrowser, FirefoxBrowser
     from .browser import BrowserSession, render
 except ModuleNotFoundError:
     import os
