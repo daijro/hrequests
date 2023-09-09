@@ -21,40 +21,31 @@ Usage:
 class OSHeaders:
     @staticmethod
     def windows() -> str:
-        etc = ('WOW64', 'Win64; x64')
-        ver = ('10.0', f'6.{rrange(4)}')
-        main = 'Windows NT '
+        version = ('10.0', f'6.{rrange(4)}')[rrange(2)]
 
-        version = ver[rrange(2)]
+        if version == '10.0' or rrange(2):
+            version += f"; {('WOW64', 'Win64; x64')[rrange(2)]}"
 
-        if version == '10.0' or bool(rrange(2)):
-            version += '; ' + etc[rrange(2)]
-
-        return main + version
+        return f'Windows NT {version}'
 
     @staticmethod
     def macos() -> str:
-        main = 'Macintosh; Intel Mac OS X 10_'
         sub = str(rint(10, 14))
         sub += '_' + str(rint(1, (6 if sub != '14' else 2)))
 
-        return main + sub
+        return f'Macintosh; Intel Mac OS X 10_{sub}'
 
     @staticmethod
     def linux() -> str:
-        ver = ['x86_64', 'i686', 'i686 on x86_64']
-        main = 'X11; Linux '
-
-        return main + ver[rrange(3)]
+        return 'X11; Linux ' + ('x86_64', 'i686', 'i686 on x86_64')[rrange(3)]
 
     @staticmethod
     def random_os() -> str:
-        os = (OSHeaders.windows, OSHeaders.macos, OSHeaders.linux)
-        return os[rrange(3)]()
+        return (OSHeaders.windows, OSHeaders.macos, OSHeaders.linux)[rrange(3)]()
 
 
 class VersionScraper:
-    threshold = 10
+    threshold: int = 10
     data: List[str]
 
     @staticmethod
@@ -150,9 +141,9 @@ class Headers:
     headers - bool, True/False. Generate random headers or no. Default: False
     '''
 
-    _os = {'win': OSHeaders.windows, 'mac': OSHeaders.macos, 'lin': OSHeaders.linux}
+    _os: dict = {'win': OSHeaders.windows, 'mac': OSHeaders.macos, 'lin': OSHeaders.linux}
 
-    _browser = {'chrome': chrome, 'firefox': firefox}
+    _browser: dict = {'chrome': chrome, 'firefox': firefox}
 
     def __init__(self, browser: str = None, os: str = None, headers: bool = True) -> None:
         self._platform: str = self._os.get(os, OSHeaders.random_os)

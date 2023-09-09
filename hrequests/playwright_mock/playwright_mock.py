@@ -94,6 +94,9 @@ class FirefoxBrowser(PlaywrightMockBase):
         )
         if not self.extensions:
             return await run_cmd()
+        # block mv3
+        for ext in self.extensions:
+            assert not ext.is_mv3, f'MKV extensions are not supported: {ext.path}'
         rdp_port: int = self.get_open_port()
         pr = await run_cmd(
             args=('-start-debugger-server', str(rdp_port)),

@@ -42,7 +42,7 @@
 
 - Simple & uncomplicated browser automation
 - Human-like cursor movement and typing
-- Chrome extension support
+- Chrome and Firefox extension support
 - Full page screenshots
 - Headless and headful support
 - No CORS restrictions
@@ -62,7 +62,7 @@ Install via pip:
 
 ```bash
 pip install -U hrequests[all]
-python -m playwright install chromium
+python -m playwright install firefox chromium
 ```
 
 Other dependencies will be downloaded on the first import:
@@ -197,11 +197,11 @@ Get the response headers:
 
 ## Sessions
 
-Creating a new Chrome Session object:
+Creating a new Firefox Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('chrome', version=112)
+>>> session = hrequests.Session('firefox', version=110)
 ```
 
 <details>
@@ -209,7 +209,7 @@ Creating a new Chrome Session object:
 
 ```
 Parameters:
-    browser (Literal['firefox', 'chrome', 'opera'], optional): Browser to use. Default is 'chrome'.
+    browser (Literal['firefox', 'chrome'], optional): Browser to use. Default is 'firefox'.
     version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
     os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
@@ -228,12 +228,11 @@ Parameters:
 
 </details>
 
-Browsers can also be created through the `firefox`, `chrome`, and `opera` shortcuts:
+Browsers can also be created through the `firefox` and `chrome` shortcuts:
 
 ```py
 >>> session = hrequests.firefox.Session()
 >>> session = hrequests.chrome.Session()
->>> session = hrequests.opera.Session()
 ```
 
 <details>
@@ -261,7 +260,7 @@ Parameters:
 `os` can be `'win'`, `'mac'`, or `'lin'`. Default is randomized.
 
 ```py
->>> session = hrequests.firefox.Session(os='mac')
+>>> session = hrequests.chrome.Session(os='mac')
 ```
 
 This will automatically generate headers based on the browser name and OS:
@@ -403,7 +402,7 @@ Create a set of unsent Requests:
 
 ```py
 reqs = [
-    hrequests.async_get('https://www.google.com/'),
+    hrequests.async_get('https://www.google.com/', browser='chrome'),
     hrequests.async_get('https://www.duckduckgo.com/'),
     hrequests.async_get('https://www.yahoo.com/')
 ]
@@ -672,6 +671,21 @@ Search for links within an element:
 
 ## Browser Automation
 
+Hrequests supports both Firefox and Chrome browsers, headless and headful sessions, and browswer addons/extensions:
+
+#### Browser support table
+
+Chrome supports both Manifest v2/v3 extensions. Firefox only supports Manifest v2 extensions.
+
+Only Firefox supports CloudFlare WAFs.
+
+| Browser | MV2                | MV3                | Cloudfare WAFs     |
+| ------- | ------------------ | ------------------ | ------------------ |
+| Firefox | :heavy_check_mark: | :x:                | :heavy_check_mark: |
+| Chrome  | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+
+### Usage
+
 You can spawn a `BrowserSession` instance by calling it:
 
 ```py
@@ -688,12 +702,20 @@ Parameters:
     resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
     proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-    browser (Literal['firefox', 'chrome', 'opera'], optional): Generate useragent headers for a specific browser
+    browser (Literal['firefox', 'chrome'], optional): Generate useragent headers for a specific browser
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
 ```
 
 </details>
+
+By default, `BrowserSession` returns a Firefox browser.
+
+To create a Chrome session, use the chrome shortcut instead:
+
+```py
+>>> page = hrequests.chrome.BrowserSession()
+```
 
 `BrowserSession` is entirely safe to use across threads.
 
@@ -703,9 +725,27 @@ Responses have a `.render()` method. This will render the contents of the respon
 
 Once the page is closed, the Response content and the Response's session cookies will be updated.
 
+#### Simple usage
+
+Rendered browser sessions will copy the browser from the initial request.
+
+You can set a request's browser with the `browser` parameter in the `hrequests.get` method:
+
+```py
+>>> resp = hrequests.get('https://example.com', browser='chrome')
+```
+
+Or by setting the `browser` parameter of the `hrequests.Session` object:
+
+```py
+>>> session = hrequests.Session(browser='chrome')
+>>> resp = session.get('https://example.com')
+```
+
 **Example - submitting a login form:**
 
 ```py
+>>> session = hrequests.Session(browser='chrome')
 >>> resp = session.get('https://www.somewebsite.com/')
 >>> with resp.render(mock_human=True) as page:
 ...     page.type('.input#username', 'myuser')
@@ -714,11 +754,10 @@ Once the page is closed, the Response content and the Response's session cookies
 # `session` & `resp` now have updated cookies, content, etc.
 ```
 
-<details>
-
 <summary><strong>Or, without a context manager</strong></summary>
 
 ```py
+>>> session = hrequests.Session(browser='chrome')
 >>> resp = session.get('https://www.somewebsite.com/')
 >>> page = resp.render(mock_human=True)
 >>> page.type('.input#username', 'myuser')
@@ -782,7 +821,7 @@ Parsing HTML from the page content:
 Take a screenshot of the page:
 
 ```py
-page.screenshot('screenshot.png')
+>>> page.screenshot('screenshot.png')
 ```
 
 <details>
@@ -1039,17 +1078,25 @@ Throws:
 
 </details>
 
-### Adding Chrome extensions
+### Adding Firefox/Chrome extensions
 
-Chrome extensions can be easily imported into a browser session. Some potentially useful extensions include:
+Firefox/Chrome extensions can be easily imported into a browser session. Some potentially useful extensions include:
 
-- [hektCaptcha](https://github.com/Wikidepia/hektCaptcha-extension) - Hcaptcha solver
+- **hektCaptcha** - Hcaptcha solver ([Chrome](https://github.com/Wikidepia/hektCaptcha-extension))
 
-- [uBlock Origin](https://github.com/gorhill/uBlock) - Ad & popup blocker
+- **uBlock Origin** - Ad & popup blocker ([Chrome](https://github.com/gorhill/uBlock), [Firefox](https://github.com/gorhill/uBlock))
 
-- [FastForward](https://fastforward.team/) - Bypass & skip link redirects
+- **FastForward** - Bypass & skip link redirects ([Chrome](https://nightly.link/FastForwardTeam/FastForward/workflows/main/main/FastForward_chromium.zip), [Firefox](https://nightly.link/FastForwardTeam/FastForward/workflows/main/main/FastForward_firefox.zip))
 
-Extensions are added with the `extensions` parameter.
+Note: Firefox extensions are _Firefox-only_, and Chrome extensions are _Chrome-only_.
+
+If you plan on using Firefox-specific or Chrome-specific extensions, make sure to set your `browser` parameter to the correct browser before rendering the page:
+
+```py
+>>> resp = hrequests.get('https://accounts.hcaptcha.com/demo', browser='chrome')
+```
+
+Extensions are added with the `extensions` parameter:
 
 - This can be an list of absolute paths to unpacked extensions:
 
@@ -1066,7 +1113,8 @@ Extensions are added with the `extensions` parameter.
 Here is an usage example of using a captcha solver:
 
 ```py
->>> with hrequests.render('https://accounts.hcaptcha.com/demo', extensions=['C:\\extensions\\hektcaptcha']) as page:
+>>> resp = hrequests.get('https://accounts.hcaptcha.com/demo', browser='firefox')
+>>> with resp.render(extensions=['C:\\extensions\\hektcaptcha']) as page:
 ...     page.awaitSelector('.hcaptcha-success')  # wait for captcha to finish
 ...     page.click('input[type=submit]')
 ```

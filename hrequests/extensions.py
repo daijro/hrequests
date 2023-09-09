@@ -29,6 +29,8 @@ class Extension:
         # read manifest.json
         with open(manifest_path, 'rb') as f:
             manifest = orjson.loads(f.read())
+        # check if manifest is mv3
+        self.is_mv3: bool = manifest['manifest_version'] == 3
         # if the manifest has a 'key' field, use it to generate the extension id
         if 'key' in manifest:
             self.id: str = self.build_id(manifest['key'])
@@ -93,7 +95,8 @@ async def activate_exts(page, exts: List[Extension]):
 class LoadFirefoxAddon:
     '''
     Firefox addon loader
-    Based on this Node.js implementation: https://github.com/microsoft/playwright/issues/7297#issuecomment-1211763085
+    Based on this Node.js implementation:
+    https://github.com/microsoft/playwright/issues/7297#issuecomment-1211763085
     '''
 
     def __init__(self, port, addon_path):
