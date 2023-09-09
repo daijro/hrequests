@@ -86,6 +86,8 @@ pip install -U hrequests
 
 # Documentation
 
+*Some parts of this README are for v0.7.0, which is currently in development. Please refer to the [v0.6.1 PyPi documentation](https://pypi.org/project/hrequests).*
+
 1. [Simple Usage](https://github.com/daijro/hrequests#simple-usage)
 2. [Sessions](https://github.com/daijro/hrequests#sessions)
 3. [Concurrent & Lazy Requests](https://github.com/daijro/hrequests#concurrent--lazy-requests)
@@ -197,11 +199,11 @@ Get the response headers:
 
 ## Sessions
 
-Creating a new Firefox Session object:
+Creating a new Chrome Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('firefox', version=110)
+>>> session = hrequests.Session('chrome', version=112)
 ```
 
 <details>
@@ -209,7 +211,7 @@ Creating a new Firefox Session object:
 
 ```
 Parameters:
-    browser (Literal['firefox', 'chrome'], optional): Browser to use. Default is 'firefox'.
+    browser (Literal['firefox', 'chrome'], optional): Browser to use. Default is 'chrome'.
     version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
     os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
@@ -402,7 +404,7 @@ Create a set of unsent Requests:
 
 ```py
 reqs = [
-    hrequests.async_get('https://www.google.com/', browser='chrome'),
+    hrequests.async_get('https://www.google.com/', browser='firefox'),
     hrequests.async_get('https://www.duckduckgo.com/'),
     hrequests.async_get('https://www.yahoo.com/')
 ]
@@ -709,12 +711,12 @@ Parameters:
 
 </details>
 
-By default, `BrowserSession` returns a Firefox browser.
+By default, `BrowserSession` returns a Chrome browser.
 
-To create a Chrome session, use the chrome shortcut instead:
+To create a Firefox session, use the chrome shortcut instead:
 
 ```py
->>> page = hrequests.chrome.BrowserSession()
+>>> page = hrequests.firefox.BrowserSession()
 ```
 
 `BrowserSession` is entirely safe to use across threads.
@@ -727,7 +729,7 @@ Once the page is closed, the Response content and the Response's session cookies
 
 #### Simple usage
 
-Rendered browser sessions will copy the browser from the initial request.
+Rendered browser sessions will use the browser set in the initial request.
 
 You can set a request's browser with the `browser` parameter in the `hrequests.get` method:
 
@@ -1093,7 +1095,8 @@ Note: Firefox extensions are _Firefox-only_, and Chrome extensions are _Chrome-o
 If you plan on using Firefox-specific or Chrome-specific extensions, make sure to set your `browser` parameter to the correct browser before rendering the page:
 
 ```py
->>> resp = hrequests.get('https://accounts.hcaptcha.com/demo', browser='chrome')
+# when dealing with captchas, make sure to use firefox
+>>> resp = hrequests.get('https://accounts.hcaptcha.com/demo', browser='firefox')
 ```
 
 Extensions are added with the `extensions` parameter:

@@ -69,6 +69,8 @@ class TLSSession(TLSClient):
     ):
         super().__init__(client_identifier=client_identifier, *args, **kwargs)
 
+        self.browser: str = browser  # browser name
+        
         # sync network methods
         self.get: partial = partial(get, session=self)
         self.post: partial = partial(post, session=self)
@@ -89,9 +91,7 @@ class TLSSession(TLSClient):
 
         # shortcut to render method
         if 'playwright' in modules:
-            self.render: partial = partial(
-                hrequests.browser.render, session=self, browser=self.browser
-            )
+            self.render = lambda: hrequests.browser.render(session=self, browser=self.browser)
         else:
             self.render: partial = partial(
                 stderr.write, 'Cannot render. Playwright not installed.\n'
@@ -99,7 +99,6 @@ class TLSSession(TLSClient):
 
         self.temp: bool = temp  # indicate if session is temporary
         self._closed: bool = False  # indicate if session is closed
-        self.browser: str = browser  # browser name
         self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
         self.timeout: float = timeout  # default timeout
@@ -206,7 +205,7 @@ class TLSSession(TLSClient):
 class Session(TLSSession):
     def __init__(
         self,
-        browser: Literal['firefox', 'chrome'] = 'firefox',
+        browser: Literal['firefox', 'chrome'] = 'chrome',
         version: Optional[int] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,

@@ -101,7 +101,7 @@ class TLSRequest:
                 self.session = hrequests.Session(temp=True, **self.sess_kwargs)
             else:
                 # else use a preconfigured session
-                self.session = hrequests.firefox.Session(temp=True)
+                self.session = hrequests.chrome.Session(temp=True)
             self._close = True
         else:
             # don't close adapters after each request if the user provided the session
