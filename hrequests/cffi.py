@@ -3,8 +3,8 @@ import os
 from platform import machine
 from sys import platform
 
-import wget
-from httpx import get
+from httpx import get, stream
+import rich.progress
 from orjson import loads
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
@@ -61,11 +61,29 @@ class LibraryManager:
         for asset in assets:
             if asset['name'].endswith(self.file_name):
                 url = asset['browser_download_url']
+                name = asset['name']
                 break
         else:
             raise IOError('Could not find a matching tls-client binary for your system.')
-        wget.download(url, out=self.parent_path)
-        print('')
+        with open(os.path.join(self.parent_path, name), 'wb') as fstream:
+            self.download_file(fstream, url)
+
+    @staticmethod
+    def download_file(fstream, url):
+        # file downloader with progress bar
+        total: int
+        with stream('GET', url, follow_redirects=True) as resp:
+            total = int(resp.headers['Content-Length'])
+            with rich.progress.Progress(
+                "[progress.percentage]{task.percentage:>3.0f}%",
+                rich.progress.BarColumn(bar_width=40),
+                rich.progress.DownloadColumn(),
+                rich.progress.TransferSpeedColumn(),
+            ) as progress:
+                download_task = progress.add_task("Download", total=total)
+                for chunk in resp.iter_bytes():
+                    fstream.write(chunk)
+                    progress.update(download_task, completed=resp.num_bytes_downloaded)
 
 
 libman = LibraryManager()
