@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from json import detect_encoding
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, List, Optional, Union, Literal
 from urllib.parse import urlparse
 
 import orjson
@@ -78,6 +78,7 @@ class ProcessResponse:
         except IOError as e:
             raise ClientException('Connection error') from e
         resp.session = None if self.session.temp else self.session
+        resp.browser: str = self.session.browser
         return resp
 
     @staticmethod
@@ -144,6 +145,7 @@ class Response:
     session: Optional[
         Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']
     ] = None
+    browser: Optional[Literal['firefox', 'chrome']] = None
     elapsed: Optional[timedelta] = None
 
     @property
@@ -223,6 +225,7 @@ class Response:
             headless=headless,
             mock_human=mock_human,
             extensions=extensions,
+            browser=self.browser,
         )
 
     def __enter__(self):

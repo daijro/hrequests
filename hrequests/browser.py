@@ -1,5 +1,6 @@
 import asyncio
 from functools import partial
+from http.client import responses as status_codes
 from random import choice
 from threading import Thread
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Pattern, Union
@@ -16,7 +17,7 @@ from hrequests.headers import Headers
 from hrequests.response import Response
 
 from .cookies import RequestsCookieJar
-from .extensions import BuildExtensions, Extension, activate_exts
+from .extensions import BuildExtensions, Extension, load_chrome_exts
 
 _browsers = {
     'firefox': hrequests.FirefoxBrowser,
@@ -41,6 +42,8 @@ class BrowserSession:
         headers (dict): Get the browser headers (User-Agent)
         content (dict): Get the current page content
         cookies (RequestsCookieJar): Get the browser cookies
+        status_code (int): Status code of the last response
+        reason (Optional[str]): Gets the official W3C name for the status code
 
     Navigation Methods:
         goto(url): Navigate to a URL.
@@ -91,21 +94,26 @@ class BrowserSession:
         # remember session and resp to clone cookies back to when closing
         self.session: Optional[hrequests.session.TLSSession] = session
         self.resp: Optional[hrequests.response.Response] = resp
+        # use the passed browser
+        self.browser: Literal['firefox', 'chrome'] = browser or 'firefox'
         # generating headers
         if session:
             # if a session was provided, use the session user-agent
-            self.browser: str = browser or session.browser
             self.ua: str = session.headers.get('User-Agent')
         else:
             # if a browser or os was provided, generate a user-agent and IGNORE session/resp headers
             # only meant to be used when using BrowserSession as a standalone
-            self.browser: str = browser or 'firefox'
             self.ua: str = Headers(browser=self.browser, os=os, headers=False).generate()[
                 'User-Agent'
             ]
         # proxy variables
         self.proxy_ip: Optional[str] = proxy_ip
         # browser config
+        self.status_code: Optional[int]
+        if self.resp is not None:
+            self.status_code = self.resp.status_code
+        else:
+            self.status_code = None
         self.mock_human: bool = mock_human
         self.headless: bool = headless
         self.extensions: Optional[List[Extension]] = (
@@ -135,7 +143,7 @@ class BrowserSession:
         self.page = await self.context.new_page()
         # activate extensions on chrome
         if self.extensions and self.browser == 'chrome':
-            await activate_exts(self.page, self.extensions)
+            await load_chrome_exts(self.page, self.extensions)
         '''
         run the main loop
         '''
@@ -203,7 +211,9 @@ class BrowserSession:
 
     async def _goto(self, url):
         '''Navigate to a URL'''
-        return await self.page.goto(url)
+        resp = await self.page.goto(url)
+        self.status_code = await resp.status()
+        return resp
 
     async def _forward(self):
         '''Navigate to the next page in history'''
@@ -398,7 +408,7 @@ class BrowserSession:
         return await self.page.screenshot(path=path, full_page=full_page)
 
     '''
-    .url, .content, .cookies, .html properties
+    .url, .content, .cookies, .html, properties
     makes this compatible with TLSSession
     '''
 
@@ -464,6 +474,11 @@ class BrowserSession:
     @property
     def find(self) -> Callable:
         return self.html.find
+
+    @property
+    def reason(self) -> Optional[str]:
+        if self.status_code is not None:
+            return status_codes[self.status_code]
 
     '''
     Network request functions
@@ -576,11 +591,12 @@ class BrowserSession:
         if self.session:
             self.session.cookies = cookiejar
         # update response
-        if self.resp:
+        if self.resp is not None:
             self.resp.cookies = cookiejar
             self.resp._content = await self.page.content()
             self.resp._text = None
             self.resp.url = self.page.url
+            self.resp.status_code = self.status_code
         # close browser
         await self.shutdown()
 
@@ -598,8 +614,10 @@ def render(
     extensions: Optional[Union[str, Iterable[str]]] = None,
     browser: Optional[Literal['firefox', 'chrome']] = None,
 ):
-    assert any((url, session, response is not None)), 'Must provide a url or an existing session, response'
-    
+    assert any(
+        (url, session, response is not None)
+    ), 'Must provide a url or an existing session, response'
+
     if proxy:
         proxy = list(proxy.values())[0]
     render_session = BrowserSession(
@@ -609,7 +627,7 @@ def render(
         headless=headless,
         mock_human=mock_human,
         extensions=extensions,
-        browser=browser
+        browser=browser,
     )
     # include headers from session if a TLSSession is provided
     if session and isinstance(session, hrequests.session.TLSSession):

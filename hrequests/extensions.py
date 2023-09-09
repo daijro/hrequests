@@ -80,7 +80,7 @@ class BuildExtensions:
             self.list = [Extension(path) for path in extensions]
 
 
-async def activate_exts(page, exts: List[Extension]):
+async def load_chrome_exts(page, exts: List[Extension]):
     for ext in exts:
         await page.goto(ext.url)
         await page.evaluate(

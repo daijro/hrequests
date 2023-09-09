@@ -89,7 +89,9 @@ class TLSSession(TLSClient):
 
         # shortcut to render method
         if 'playwright' in modules:
-            self.render: partial = partial(hrequests.browser.render, session=self)
+            self.render: partial = partial(
+                hrequests.browser.render, session=self, browser=self.browser
+            )
         else:
             self.render: partial = partial(
                 stderr.write, 'Cannot render. Playwright not installed.\n'
