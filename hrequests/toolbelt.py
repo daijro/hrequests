@@ -3,8 +3,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from io import BufferedReader
-from typing import (Any, Dict, Iterator, List, Mapping, MutableMapping,
-                    Optional, Tuple, Union)
+from typing import Any, Dict, Iterator, List, Mapping, MutableMapping, Optional, Tuple, Union
 
 from urllib3.fields import RequestField
 from urllib3.filepost import encode_multipart_formdata

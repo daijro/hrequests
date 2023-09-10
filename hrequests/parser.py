@@ -520,7 +520,9 @@ class HTML(BaseParser):
             default_encoding=default_encoding,
             br_session=weakref.proxy(session)
             if hasattr(hrequests, 'browser')  # if the browser module is imported
-            and isinstance(session, hrequests.browser.BrowserSession)  # and session is a BrowserSession
+            and isinstance(
+                session, hrequests.browser.BrowserSession
+            )  # and session is a BrowserSession
             else None,
         )
         self.session = session or hrequests.firefox.Session(temp=True)
