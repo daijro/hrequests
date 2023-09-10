@@ -212,7 +212,7 @@ class BrowserSession:
     async def _goto(self, url):
         '''Navigate to a URL'''
         resp = await self.page.goto(url)
-        self.status_code = await resp.status()
+        self.status_code = resp.status
         return resp
 
     async def _forward(self):
@@ -397,7 +397,7 @@ class BrowserSession:
         except PlaywrightError as e:
             raise JavascriptException('Javascript eval exception') from e
 
-    async def _screenshot(self, path: str, full_page: bool = False):
+    async def _screenshot(self, path: str, full_page: bool = False) -> None:
         '''
         Take a screenshot of the page
 
@@ -405,7 +405,7 @@ class BrowserSession:
             path (str): Path to save screenshot to
             full_page (bool): Whether to take a screenshot of the full scrollable page
         '''
-        return await self.page.screenshot(path=path, full_page=full_page)
+        await self.page.screenshot(path=path, full_page=full_page)
 
     '''
     .url, .content, .cookies, .html, properties
@@ -574,7 +574,7 @@ class BrowserSession:
     async def _loadText(self, text):
         # load content into page
         await self.page.set_content(text)
-        await self.page.wait_for_load_state()
+        await self.page.wait_for_load_state('domcontentloaded')
 
     async def _setCookies(self, cookiejar: RequestsCookieJar):
         # convert cookiejar to list of dicts
