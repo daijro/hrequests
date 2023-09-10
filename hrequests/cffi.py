@@ -2,9 +2,10 @@ import ctypes
 import os
 from platform import machine
 from sys import platform
+from typing import Tuple
 
-from httpx import get, stream
 import rich.progress
+from httpx import get, stream
 from orjson import loads
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
@@ -30,38 +31,38 @@ arch_map = {
 class LibraryManager:
     def __init__(self):
         self.parent_path = os.path.join(root_dir, 'bin')
-        self.file_name = self.get_path()
+        self.file_cont, self.file_ext = self.get_name()
         filename = self.check_library()
         self.full_path = os.path.join(self.parent_path, filename)
 
     @staticmethod
-    def get_path():
+    def get_name() -> Tuple[str, str]:
         try:
             arch = arch_map[machine().lower()]
         except KeyError as e:
             raise OSError('Your machine architecture is not supported.') from e
         if platform == 'darwin':
-            return f'darwin-{arch}.dylib'
+            return f'darwin-{arch}', '.dylib'
         elif platform in ('win32', 'cygwin'):
-            return f'windows-{arch}.dll'
-        return f'linux-{arch}.so'
+            return f'windows-{arch}', '.dll'
+        return f'linux-{arch}', '.so'
 
     def check_library(self):
         for file in os.listdir(self.parent_path):
-            if file.endswith(self.file_name):
+            if file.endswith(self.file_ext):
                 return file
         self.download_library()
         return self.check_library()
 
     def download_library(self):
         print('Downloading tls-client library from bogdanfinn/tls-client...')
-        # pull release assets from github bogdanfinn/tls-client
-        resp = get('https://api.github.com/repos/bogdanfinn/tls-client/releases/latest')
-        assets = loads(resp.text)['assets']
+        # pull release assets from github bogdanfinn/tls-client v1.6.0
+        resp = get('https://api.github.com/repos/bogdanfinn/tls-client/releases/119748617/assets')
+        assets = loads(resp.content)
         for asset in assets:
-            if asset['name'].endswith(self.file_name):
-                url = asset['browser_download_url']
-                name = asset['name']
+            if self.file_cont in asset['name'] and asset['name'].endswith(self.file_ext):
+                url: str = asset['browser_download_url']
+                name: str = asset['name']
                 break
         else:
             raise IOError('Could not find a matching tls-client binary for your system.')
