@@ -86,7 +86,10 @@ pip install -U hrequests
 
 # Documentation
 
-*Some parts of this README are for v0.7.0, which is currently in development. Please refer to the [v0.6.1 PyPi documentation](https://pypi.org/project/hrequests).*
+**Gitbook documentation is available [here](https://daijro.gitbook.io/hrequests/).**
+
+Some parts of this README are for v0.7.0, which is currently in development. Please refer to the [v0.6.1 PyPi documentation](https://pypi.org/project/hrequests).
+
 
 1. [Simple Usage](https://github.com/daijro/hrequests#simple-usage)
 2. [Sessions](https://github.com/daijro/hrequests#sessions)
@@ -673,7 +676,7 @@ Search for links within an element:
 
 ## Browser Automation
 
-Hrequests supports both Firefox and Chrome browsers, headless and headful sessions, and browswer addons/extensions:
+Hrequests supports both Firefox and Chrome browsers, headless and headful sessions, and browser addons/extensions:
 
 #### Browser support table
 
