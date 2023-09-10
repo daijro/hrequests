@@ -1,7 +1,6 @@
 import asyncio
 from functools import partial
 from http.client import responses as status_codes
-from random import choice
 from threading import Thread
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Pattern, Union
 

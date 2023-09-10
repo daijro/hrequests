@@ -406,11 +406,11 @@ This functionality is similar to [grequests](https://github.com/spyoungtech/greq
 Create a set of unsent Requests:
 
 ```py
-reqs = [
-    hrequests.async_get('https://www.google.com/', browser='firefox'),
-    hrequests.async_get('https://www.duckduckgo.com/'),
-    hrequests.async_get('https://www.yahoo.com/')
-]
+>>> reqs = [
+...     hrequests.async_get('https://www.google.com/', browser='firefox'),
+...     hrequests.async_get('https://www.duckduckgo.com/'),
+...     hrequests.async_get('https://www.yahoo.com/')
+... ]
 ```
 
 #### map
@@ -812,6 +812,15 @@ Get page content:
 '<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta content="Search the world\'s information, including webpag'
 >>> page.content: bytes
 b'<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta content="Search the world\'s information, including webpag'
+```
+
+Get the status of the last navigation:
+
+```py
+>>> page.status_code: int
+200
+>>> page.reason: str
+'OK'
 ```
 
 Parsing HTML from the page content:

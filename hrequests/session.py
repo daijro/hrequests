@@ -70,7 +70,7 @@ class TLSSession(TLSClient):
         super().__init__(client_identifier=client_identifier, *args, **kwargs)
 
         self.browser: str = browser  # browser name
-        
+
         # sync network methods
         self.get: partial = partial(get, session=self)
         self.post: partial = partial(post, session=self)
@@ -88,14 +88,6 @@ class TLSSession(TLSClient):
         self.async_put: partial = partial(async_put, session=self)
         self.async_patch: partial = partial(async_patch, session=self)
         self.async_delete: partial = partial(async_delete, session=self)
-
-        # shortcut to render method
-        if 'playwright' in modules:
-            self.render = lambda: hrequests.browser.render(session=self, browser=self.browser)
-        else:
-            self.render: partial = partial(
-                stderr.write, 'Cannot render. Playwright not installed.\n'
-            )
 
         self.temp: bool = temp  # indicate if session is temporary
         self._closed: bool = False  # indicate if session is closed
@@ -132,6 +124,13 @@ class TLSSession(TLSClient):
         if os not in _os_set:
             raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
         self.resetHeaders(os=os)
+
+    def render(self, *args, **kwargs):
+        # shortcut to render method
+        if 'playwright' in modules:
+            return hrequests.browser.render(*args, **kwargs, session=self, browser=self.browser)
+        else:
+            stderr.write('Cannot render. Playwright not installed.\n')
 
     def request(
         self,
