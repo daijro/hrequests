@@ -90,6 +90,7 @@ class BaseParser:
         'type',
         'click',
         'hover',
+        'screenshot',
     }
 
     def __getattr__(self, name):

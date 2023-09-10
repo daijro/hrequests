@@ -832,16 +832,22 @@ Parsing HTML from the page content:
 Take a screenshot of the page:
 
 ```py
->>> page.screenshot('screenshot.png')
+>>> page.screenshot(path='screenshot.png')
 ```
 
 <details>
 <summary>Parameters</summary>
 
 ```
+Take a screenshot of the page
+
 Parameters:
-    path (str): Path to save screenshot to
-    full_page (bool): Whether to take a screenshot of the full scrollable page
+    selector (str, optional): CSS selector to screenshot
+    path (str, optional): Path to save screenshot to. Defaults to None.
+    full_page (bool): Whether to take a screenshot of the full scrollable page. Cannot be used with selector. Defaults to False.
+
+Returns:
+    Optional[bytes]: Returns the screenshot buffer, if `path` was not provided
 ```
 
 </details>
@@ -1053,6 +1059,8 @@ Wait for an element to exist on the page:
 
 ```py
 >>> page.awaitSelector('#my-selector')
+# or through the html parser
+>>> page.html.find('#my-selector').awaitSelector()
 ```
 
 <details>
@@ -1073,6 +1081,8 @@ Wait for an element to be enabled:
 
 ```py
 >>> page.awaitEnabled('#my-selector')
+# or through the html parser
+>>> page.html.find('#my-selector').awaitEnabled()
 ```
 
 <details>
@@ -1088,6 +1098,32 @@ Throws:
 ```
 
 </details>
+
+Screenshot an element:
+
+```py
+>>> page.screenshot('#my-selector', path='screenshot.png')
+# or through the html parser
+>>> page.html.find('#my-selector').screenshot(path='selector.png')
+```
+
+<details>
+<summary>Parameters</summary>
+
+```
+Screenshot an element
+
+Parameters:
+    selector (str, optional): CSS selector to screenshot
+    path (str, optional): Path to save screenshot to. Defaults to None.
+    full_page (bool): Whether to take a screenshot of the full scrollable page. Cannot be used with selector. Defaults to False.
+
+Returns:
+    Optional[bytes]: Returns the screenshot buffer, if `path` was not provided
+```
+
+</details>
+
 
 ### Adding Firefox/Chrome extensions
 

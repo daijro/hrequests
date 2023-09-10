@@ -60,7 +60,7 @@ class BrowserSession:
         click(selector, click_count, button, timeout, wait_after): Click a selector
         hover(selector, modifiers, timeout): Hover over a selector
         evaluate(script, arg): Evaluate and return a script
-        screenshot(path, full_page): Take a screenshot of the page
+        screenshot(selector, path, full_page): Take a screenshot of the page
         setHeaders(headers): Set the browser headers. Note that this will NOT update the TLSSession headers
         close(): Close the instance
 
@@ -396,15 +396,27 @@ class BrowserSession:
         except PlaywrightError as e:
             raise JavascriptException('Javascript eval exception') from e
 
-    async def _screenshot(self, path: str, full_page: bool = False) -> None:
+    async def _screenshot(
+        self, selector: Optional[str], path: Optional[str] = None, *, full_page: bool = False
+    ) -> Optional[bytes]:
         '''
         Take a screenshot of the page
 
         Parameters:
-            path (str): Path to save screenshot to
-            full_page (bool): Whether to take a screenshot of the full scrollable page
+            selector (str, optional): CSS selector to screenshot
+            path (str, optional): Path to save screenshot to. Defaults to None.
+            full_page (bool): Whether to take a screenshot of the full scrollable page. Cannot be used with selector. Defaults to False.
+            
+        Returns:
+            Optional[bytes]: Returns the screenshot buffer, if `path` was not provided
         '''
-        await self.page.screenshot(path=path, full_page=full_page)
+        assert not (selector and full_page), 'Cannot use selector and full_page together'
+        if selector:
+            buffer = await self.page.locator(selector).screenshot(path=path)
+        else:
+            buffer = await self.page.screenshot(path=path, full_page=full_page)
+        if not path:  # dont return buffer if path was provided
+            return buffer
 
     '''
     .url, .content, .cookies, .html, properties
