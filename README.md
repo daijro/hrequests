@@ -31,7 +31,7 @@
 
 - Seamless transition between HTTP and headless browsing 💻
 - Integrated fast HTML parser 🚀
-- High performance concurrency with gevent (_without monkey-patching!_) 🚀
+- High performance network concurrency with goroutines & gevent 🚀
 - Replication of browser TLS fingerprints 🚀
 - JavaScript rendering 🚀
 - Supports HTTP/2 🚀
@@ -51,6 +51,7 @@
 
 - High performance ✨
 - Minimal dependence on the python standard libraries
+- HTTP backend written in Go
 - Written with type safety
 - 100% threadsafe ❤️
 
@@ -203,7 +204,7 @@ Creating a new Chrome Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('chrome', version=112)
+>>> session = hrequests.Session('chrome', version=117)
 ```
 
 <details>
@@ -387,7 +388,6 @@ Parameters:
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
     proxies (dict, optional): Dictionary of proxies. Defaults to None.
-    nohup (bool, optional): Run the request in the background. Defaults to False.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
@@ -512,18 +512,21 @@ To handle timeouts or any other exception during the connection of the request, 
 ['Response failed: Connection error', 'Response failed: Connection error', <Response [200]>]
 ```
 
-The value returned by the exception handler will be used in place of the response in the result list:
+The value returned by the exception handler will be used in place of the response in the result list.
+
+If an exception handler isn't specified, the default yield type is `hrequests.FailedResponse`.
 
 <hr width=50>
 
 ## HTML Parsing
 
-HTML scraping uses PyQuery, which is ~7x faster than bs4. This functionality is based of [requests-html](https://github.com/psf/requests-html).
+HTML scraping is based off [selectolax](https://github.com/rushter/selectolax), which is **over 25x faster** than bs4. This functionality is inspired by [requests-html](https://github.com/psf/requests-html).
 
 | Library        | Time (1e5 trials) |
 | -------------- | ----------------- |
 | BeautifulSoup4 | 52.6              |
 | PyQuery        | 7.5               |
+| selectolax     | **1.9**               |
 
 The HTML parser can be accessed through the `html` attribute of the response object:
 
@@ -595,36 +598,6 @@ If ``first`` is ``True``, only returns the first
 
 </details>
 
-XPath is also supported:
-
-```py
->>> resp.html.xpath('/html/body/div[1]/a')
-[<Element 'a' class=('px-2', 'py-4', 'show-on-focus', 'js-skip-to-content') href='#start-of-content' tabindex='1'>]
-```
-
-<details>
-<summary>Parameters</summary>
-
-```
-Given an XPath selector, returns a list of Element objects or a single one.
-
-Parameters:
-    selector (str): XPath Selector to use.
-    clean (bool, optional): Whether or not to sanitize the found HTML of <script> and <style> tags. Defaults to
-    first (bool, optional): Whether or not to return just the first result. Defaults to False.
-    _encoding (str, optional): The encoding format. Defaults to None.
-
-Returns:
-    _XPath: A list of Element objects or a single one.
-
-If a sub-selector is specified (e.g. //a/@href), a simple list of results is returned.
-See W3School's XPath Examples for more details.
-
-If first is True, only returns the first Element found.
-```
-
-</details>
-
 ### Introspecting elements
 
 Grab an Element's text contents:
@@ -644,6 +617,8 @@ Getting an Element's attributes:
 ```py
 >>> about.attrs
 {'id': 'about', 'class': ('tier-1', 'element-1'), 'aria-haspopup': 'true'}
+>>> about.id
+'about'
 ```
 
 Get an Element's raw HTML:
@@ -660,6 +635,13 @@ Select Elements within Elements:
 [<Element 'a' href='/about/' title='' class=''>, <Element 'a' href='/about/apps/' title=''>, <Element 'a' href='/about/quotes/' title=''>, <Element 'a' href='/about/gettingstarted/' title=''>, <Element 'a' href='/about/help/' title=''>, <Element 'a' href='http://brochure.getpython.info/' title=''>]
 >>> about.find('a')
 <Element 'a' href='/about/' title='' class=''>
+```
+
+Searching by HTML attributes:
+
+```py
+>>> about.find('il', role='treeitem')
+<Element 'li' role='treeitem' class=('tier-2', 'element-1')>
 ```
 
 Search for links within an element:
@@ -1123,7 +1105,6 @@ Returns:
 ```
 
 </details>
-
 
 ### Adding Firefox/Chrome extensions
 

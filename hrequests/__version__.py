@@ -1,5 +1,5 @@
 __title__ = "hrequests"
 __description__ = "Webscraping for humans"
-__version__ = "0.7.1"
+__version__ = "0.8.0-beta"
 __author__ = "daijro"
 __license__ = "Apache 2.0"

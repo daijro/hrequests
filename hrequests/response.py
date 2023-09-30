@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from json import detect_encoding
-from typing import Callable, Iterable, List, Optional, Union, Literal
-from urllib.parse import urlparse
+from typing import Callable, Iterable, List, Literal, Optional, Union
 
-import orjson
+from orjson import dumps, loads
 
 import hrequests
+from hrequests.cffi import PORT
 from hrequests.exceptions import ClientException
 
 from .cookies import RequestsCookieJar
@@ -22,15 +22,12 @@ class ProcessResponse:
         method: str,
         url: str,
         files: Optional[dict] = None,
-        allow_redirects: bool = True,
-        history: bool = False,
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
         **kwargs,
     ) -> None:
         self.session: 'hrequests.session.TLSSession' = session
         self.method: str = method
         self.url: str = url
-        self.allow_redirects: bool = allow_redirects
 
         if files:
             data = kwargs['data']
@@ -49,30 +46,21 @@ class ProcessResponse:
             headers['Content-Type'] = content_type
             kwargs['headers'] = headers
 
-        self.history: bool = history
         self.cookies: Optional[Union[RequestsCookieJar, dict, list]] = cookies
         self.kwargs: dict = kwargs
         self.response: Response
 
     def send(self) -> None:
         time: datetime = datetime.now()
-        if self.history:
-            resp_history = list(self.generate_history())
-            self.response = resp_history[-1]
-            self.response.history = resp_history[:-1]
-        else:
-            self.response = self.execute_request()
+        self.response = self.execute_request()
         self.response.elapsed = datetime.now() - time
 
-    def execute_request(self, redirect: Optional[bool] = None) -> 'Response':
-        if redirect is None:
-            redirect = self.allow_redirects
+    def execute_request(self) -> 'Response':
         try:
             resp = self.session.execute_request(
-                self.method,
-                self.url,
+                method=self.method,
+                url=self.url,
                 cookies=self.cookies,
-                allow_redirects=redirect,
                 **self.kwargs,
             )
         except IOError as e:
@@ -81,33 +69,43 @@ class ProcessResponse:
         resp.browser: str = self.session.browser
         return resp
 
-    @staticmethod
-    def _merge_relative(src_url, redir_url):
-        '''
-        merges the netloc of a source url with the path/params/query/fragment of a redirect url
-        if they weren't provided in the redirect url
-        '''
-        parsed_red = urlparse(redir_url)
-        # if the redirect url already has a domain and scheme, return with no change
-        if parsed_red.netloc and parsed_red.scheme:
-            return redir_url
-        # parse the source url
-        parsed_src = urlparse(src_url)
-        # rebuild with missing netloc and scheme
-        if not parsed_red.scheme:
-            parsed_red.scheme = parsed_src.scheme
-        if not parsed_red.netloc:
-            parsed_red.netloc = parsed_src.netloc
-        return parsed_red.geturl()
 
-    def generate_history(self):
-        while True:
-            resp = self.execute_request(redirect=False)  # don't allow redirects
-            yield resp
-            if self.allow_redirects and resp.status_code in range(300, 400):
-                self.url = self._merge_relative(resp.url, resp.headers['Location'])
-            else:
-                break
+class ProcessResponsePool:
+    '''
+    Processes a pool of ProcessResponse objects
+    '''
+
+    def __init__(self, pool: List[ProcessResponse]) -> None:
+        self.pool: List[ProcessResponse] = pool
+
+    def execute_pool(self) -> List['Response']:
+        values: list = []
+        for proc in self.pool:
+            # get the request data
+            payload, headers = proc.session.build_request(
+                method=proc.method,
+                url=proc.url,
+                cookies=proc.cookies,
+                **proc.kwargs,
+            )
+            # remember full set of headers (including from session)
+            proc.full_headers = headers
+            # add to values
+            values.append(payload)
+        # execute the pool
+        try:
+            # send request
+            resp = proc.session.server.post(
+                f'http://127.0.0.1:{PORT}/multirequest', body=dumps(values)
+            )
+            response_object = loads(resp.read())
+        except Exception as e:
+            raise ClientException('Connection error') from e
+        # process responses
+        return [
+            proc.session.build_response(proc.url, proc.full_headers, data)
+            for proc, data in zip(self.pool, response_object)
+        ]
 
 
 @dataclass
@@ -154,7 +152,7 @@ class Response:
 
     def json(self, **kwargs) -> Union[dict, list]:
         # use faster json processing
-        return orjson.loads(self.content, **kwargs)
+        return loads(self.content, **kwargs)
 
     @property
     def encoding(self) -> Optional[str]:
@@ -180,13 +178,17 @@ class Response:
     def html(self) -> 'hrequests.parser.HTML':
         if not self.__dict__.get('_html'):
             self._html = hrequests.parser.HTML(
-                session=self.session, url=self.url, html=self.content, default_encoding='utf-8'
+                session=self.session, url=self.url, html=self.content
             )
         return self._html
 
     @property
     def find(self) -> Callable:
         return self.html.find
+    
+    @property
+    def find_all(self) -> Callable:
+        return self.html.find_all
 
     @property
     def ok(self) -> bool:

@@ -1,4 +1,3 @@
-import socket
 from functools import partial
 from typing import Dict, List, Tuple
 
@@ -7,6 +6,7 @@ from playwright.async_api import async_playwright
 
 from hrequests.extensions import LoadFirefoxAddon
 from hrequests.playwright_mock import Faker, ProxyManager, context
+from hrequests.cffi import GetOpenPort
 
 
 class PlaywrightMockBase(AsyncObject):
@@ -77,15 +77,6 @@ class FirefoxBrowser(PlaywrightMockBase):
         'extensions.manifestV3.enabled': True,
     }
 
-    @staticmethod
-    def get_open_port():
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(("", 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-        s.close()
-        return port
-
     async def launch_browser(self, headless: bool = False):
         run_cmd = partial(
             self.playwright.firefox.launch,
@@ -97,7 +88,7 @@ class FirefoxBrowser(PlaywrightMockBase):
         # block mv3
         for ext in self.extensions:
             assert not ext.is_mv3, f'MKV extensions are not supported: {ext.path}'
-        rdp_port: int = self.get_open_port()
+        rdp_port: int = GetOpenPort()
         pr = await run_cmd(
             args=('-start-debugger-server', str(rdp_port)),
         )

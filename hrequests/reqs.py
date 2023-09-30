@@ -1,9 +1,10 @@
 import traceback
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import wait as futures_wait
+from dataclasses import dataclass
 from functools import partial
 from threading import Thread
-from typing import Dict, Iterable, Optional, Union, overload
+from typing import Callable, Dict, Iterable, List, Optional, Union, overload
 from urllib.parse import urlencode
 
 import gevent
@@ -128,11 +129,14 @@ class TLSRequest:
             self.exception = e
             self.traceback = traceback.format_exc()
         finally:
-            if self._close and self.session is not None:
-                # close the session if it was created by this request
-                self.session.close()
-                self.session = None
+            self.close_session()
         return self
+
+    def close_session(self) -> None:
+        if self._close and self.session is not None:
+            # close the session if it was created by this request
+            self.session.close()
+            self.session = None
 
 
 class LazyTLSRequest(TLSRequest):
@@ -238,7 +242,7 @@ def request(method: str, url: Union[str, Iterable[str]], *args, **kwargs):
     return req.response
 
 
-def async_request(*args, **kwargs) -> TLSRequest:
+def async_request(*args, raise_exception=False, **kwargs) -> TLSRequest:
     '''
     Return an unsent request to be used with map, imap, and imap_enum.
     Used to send requests concurrently.
@@ -259,7 +263,7 @@ def async_request(*args, **kwargs) -> TLSRequest:
     Returns:
         TLSRequest: Unsent request object
     '''
-    return TLSRequest(*args, **kwargs, raise_exception=False)
+    return TLSRequest(*args, **kwargs, raise_exception=raise_exception)
 
 
 '''
@@ -298,7 +302,29 @@ def send(r, pool: Optional[Pool] = None):
     return gevent.spawn(r.send) if pool is None else pool.spawn(r.send)
 
 
-def map(requests, size=None, exception_handler=None, timeout=None):
+@dataclass
+class FailedResponse:
+    '''
+    A FailedResponse object is returned when a request fails and no exception handler is provided.
+    '''
+
+    exception: Exception
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:
+        return f'<FailedResponse: {self.exception}>'
+
+    def __str__(self) -> str:
+        return str(self.exception)
+
+
+def map(
+    requests: List[TLSRequest],
+    size: Optional[int] = None,
+    exception_handler: Optional[Callable] = None,
+):
     '''
     Concurrently converts a list of Requests to Responses.
 
@@ -306,36 +332,58 @@ def map(requests, size=None, exception_handler=None, timeout=None):
         requests - a collection of Request objects.
         size - Specifies the number of requests to make at a time. If None, no throttling occurs.
         exception_handler - Callback function, called when exception occurred. Params: Request, Exception
-        timeout - Gevent joinall timeout in seconds. (Note: unrelated to requests timeout)
 
     Returns:
         A list of Response objects.
     '''
 
     requests = list(requests)
+    all_resps: List[Optional[Response]] = []
+
     if size is None:
+        # set default increment size to the total
         size = len(requests)
 
-    pool = Pool(size)
-    jobs = [send(r, pool) for r in requests]
-    gevent.joinall(jobs, timeout=timeout)
+    for inc in range(0, len(requests), size):
+        processed_reqs: List[hrequests.response.ProcessResponse] = []
+        requests_range = requests[inc : min(inc + size, len(requests))]
+        for req in requests_range:
+            # prepare the request & construct sessions
+            if req.session is None:
+                req._build_session()
+            # create a list of ProcessResponse objects
+            processed_reqs.append(
+                req.session.request(req.method, req.url, **req.kwargs, process=False)
+            )
+        try:
+            resps: List[Optional[Response]] = hrequests.response.ProcessResponsePool(
+                processed_reqs
+            ).execute_pool()
+        except Exception as e:
+            # handle exception for all requests in the pool
+            failed_resp: FailedResponse = FailedResponse(e)  # create a FailedResponse object
+            resps = [failed_resp] * len(requests_range)  # add None for each failed request
+            for req in requests_range:
+                if req.raise_exception:
+                    raise e
+                req.exception = e
+                req.traceback = traceback.format_exc()
+                if exception_handler:
+                    exception_handler(req, e)
+        finally:
+            # close sessions
+            for req in requests_range:
+                req.close_session()
+        all_resps.extend(resps)
+    return all_resps
 
-    ret = []
 
-    for request in requests:
-        if request.response is not None:
-            ret.append(request.response)
-        elif exception_handler and hasattr(request, 'exception'):
-            ret.append(exception_handler(request, request.exception))
-        elif exception_handler:
-            ret.append(exception_handler(request, None))
-        else:
-            ret.append(None)
-
-    return ret
-
-
-def imap(requests, size=2, enumerate=False, exception_handler=None):
+def imap(
+    requests: List[TLSRequest],
+    size: int = 2,
+    enumerate: bool = False,
+    exception_handler: Optional[Callable] = None,
+):
     '''
     Concurrently converts a generator object of Requests to a generator of Responses.
 
@@ -361,11 +409,17 @@ def imap(requests, size=2, enumerate=False, exception_handler=None):
             ex_result = exception_handler(request, request.exception)
             if ex_result is not None:
                 yield ex_result
+        else:
+            yield FailedResponse(request.exception)
 
     pool.join()
 
 
-def imap_enum(requests, size=2, exception_handler=None):
+def imap_enum(
+    requests: List[TLSRequest],
+    size: int = 2,
+    exception_handler: Optional[Callable] = None,
+):
     '''
     Like imap, but yields tuple of original request index and response object
     Unlike imap, failed results and responses from exception handlers that return None are not ignored. Instead, a
@@ -396,4 +450,4 @@ def imap_enum(requests, size=2, exception_handler=None):
             ex_result = exception_handler(request, request.exception)
             yield index, ex_result
         else:
-            yield index, None
+            yield index, FailedResponse(request.exception)

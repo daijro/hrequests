@@ -8,7 +8,6 @@ from hrequests.headers import Headers
 from hrequests.reqs import *
 from hrequests.response import ProcessResponse
 
-from .cffi import freeMemory
 from .client import TLSClient
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict
@@ -90,7 +89,6 @@ class TLSSession(TLSClient):
         self.async_delete: partial = partial(async_delete, session=self)
 
         self.temp: bool = temp  # indicate if session is temporary
-        self._closed: bool = False  # indicate if session is closed
         self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
         self.timeout: float = timeout  # default timeout
@@ -147,6 +145,7 @@ class TLSSession(TLSClient):
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
         proxies: Optional[dict] = None,
+        process: bool = True,
     ) -> 'hrequests.response.Response':
         """
         Send a request with TLS client
@@ -183,22 +182,11 @@ class TLSSession(TLSClient):
             timeout=self.timeout if timeout is None else timeout,
             proxy=proxies,
         )
+        if not process:
+            # return an unfinished ProcessResponse object
+            return proc
         proc.send()
         return proc.response
-
-    def close(self):
-        if not self._closed:
-            self._closed = True
-            freeMemory(self._session_id.encode('utf-8'))
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        self.close()
-
-    def __del__(self):
-        self.close()
 
 
 class Session(TLSSession):
@@ -286,12 +274,12 @@ class SessionShortcut:
 
 class firefox(SessionShortcut):
     name: str = 'firefox'
-    versions: Tuple[int] = (102, 104, 105, 106, 108, 110)
+    versions: Tuple[int] = (102, 104, 105, 106, 108, 110, 117)
 
 
 class chrome(SessionShortcut):
     name: str = 'chrome'
-    versions: Tuple[int] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112)
+    versions: Tuple[int] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117)
 
 
 _browsers: dict = {'firefox': firefox, 'chrome': chrome}

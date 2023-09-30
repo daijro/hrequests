@@ -1,5 +1,6 @@
 import ctypes
 import os
+import socket
 from platform import machine
 from sys import platform
 from typing import Tuple
@@ -10,7 +11,7 @@ from orjson import loads
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
 
-# map machine architecture to tls-client binary name
+# map machine architecture to hrequests-cgo binary name
 arch_map = {
     'amd64': 'amd64',
     'x86_64': 'amd64',
@@ -44,7 +45,7 @@ class LibraryManager:
         if platform == 'darwin':
             return f'darwin-{arch}', '.dylib'
         elif platform in ('win32', 'cygwin'):
-            return f'windows-{arch}', '.dll'
+            return f'windows-4.0-{arch}', '.dll'
         return f'linux-{arch}', '.so'
 
     def check_library(self):
@@ -55,17 +56,17 @@ class LibraryManager:
         return self.check_library()
 
     def download_library(self):
-        print('Downloading tls-client library from bogdanfinn/tls-client...')
-        # pull release assets from github bogdanfinn/tls-client v1.6.0
-        resp = get('https://api.github.com/repos/bogdanfinn/tls-client/releases/119748617/assets')
-        assets = loads(resp.content)
+        print('Downloading hrequests-cgo library from daijro/hrequests...')
+        # pull release assets from github daijro/hrequests
+        resp = get('https://api.github.com/repos/daijro/hrequests/releases/latest')
+        assets = loads(resp.content)['assets']
         for asset in assets:
             if self.file_cont in asset['name'] and asset['name'].endswith(self.file_ext):
                 url: str = asset['browser_download_url']
                 name: str = asset['name']
                 break
         else:
-            raise IOError('Could not find a matching tls-client binary for your system.')
+            raise IOError('Could not find a matching binary for your system.')
         with open(os.path.join(self.parent_path, name), 'wb') as fstream:
             self.download_file(fstream, url)
 
@@ -87,21 +88,44 @@ class LibraryManager:
                     progress.update(download_task, completed=resp.num_bytes_downloaded)
 
 
+def GetOpenPort() -> int:
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+class GoString(ctypes.Structure):
+    # wrapper around Go's string type
+    _fields_ = [("p", ctypes.c_char_p), ("n", ctypes.c_longlong)]
+
+
+# load the shared package
 libman = LibraryManager()
 
 library = ctypes.cdll.LoadLibrary(libman.full_path)
 del libman
 
-# extract the exposed request function from the shared package
-request = library.request
-request.argtypes = [ctypes.c_char_p]
-request.restype = ctypes.c_char_p
+# extract the exposed destroySession function
+library.DestroySession.argtypes = [GoString]
+library.DestroySession.restype = ctypes.c_void_p
 
 
-freeMemory = library.freeMemory
-freeMemory.argtypes = [ctypes.c_char_p]
-freeMemory.restype = ctypes.c_char_p
+def destroySession(session_id: str):
+    encoded_session_id = session_id.encode('utf-8')
+    library.DestroySession(GoString(encoded_session_id, len(encoded_session_id)))
 
 
-destroyAll = library.destroyAll
-destroyAll.restype = ctypes.c_char_p
+# spawn the server
+PORT = GetOpenPort()
+library.StartServer.argtypes = [GoString]
+
+
+def start_server():
+    encoded_port = str(PORT).encode('utf-8')
+    library.StartServer(GoString(encoded_port, len(encoded_port)))
+
+
+start_server()

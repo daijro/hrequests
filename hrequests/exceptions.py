@@ -20,3 +20,7 @@ class NotRenderedException(Exception):
 
 class JavascriptException(BrowserException):
     '''Exception raised when a javascript error occurs'''
+
+
+class SelectorNotFoundException(Exception):
+    '''Exception raised when a css selector is not found'''

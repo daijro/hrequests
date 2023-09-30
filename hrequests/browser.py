@@ -485,6 +485,10 @@ class BrowserSession:
     @property
     def find(self) -> Callable:
         return self.html.find
+    
+    @property
+    def find_all(self) -> Callable:
+        return self.html.find_all
 
     @property
     def reason(self) -> Optional[str]:

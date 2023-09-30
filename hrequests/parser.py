@@ -1,23 +1,15 @@
 import contextlib
-import re
 import weakref
 from functools import partial
 from typing import List, MutableMapping, Optional, Set, Union
 from urllib.parse import urljoin, urlparse, urlunparse
 
-import lxml
-from lxml import etree
-from lxml.html import HtmlElement
-from lxml.html import tostring as lxml_html_tostring
-from lxml.html.clean import Cleaner
-from lxml.html.soupparser import fromstring as soup_parse
+import selectolax.lexbor
 from parse import Result, findall
 from parse import search as parse_search
-from pyquery import PyQuery
-from w3lib.encoding import html_to_unicode
 
 import hrequests
-from hrequests.exceptions import NotRenderedException
+from hrequests.exceptions import NotRenderedException, SelectorNotFoundException
 
 """
 Based off https://github.com/psf/requests-html/blob/master/requests_html.py
@@ -30,7 +22,6 @@ pq total time: 7.5
 """
 
 
-DEFAULT_ENCODING = 'utf-8'
 DEFAULT_URL = 'https://example.org/'
 DEFAULT_NEXT_SYMBOL = ['next', 'more', 'older']
 
@@ -52,7 +43,6 @@ class BaseParser:
 
     Args:
         element: The element from which to base the parsing upon.
-        default_encoding: Which encoding to default to.
         html: HTML from which to base the parsing upon (optional).
         url: The URL from which the HTML originated, used for ``absolute_links``.
     """
@@ -61,24 +51,13 @@ class BaseParser:
         self,
         *,
         element,
-        default_encoding: str = None,
-        html: _HTML = None,
         url: str,
         br_session: Optional[weakref.CallableProxyType] = None,
     ) -> None:
         self.element = element
         self.url = url
         self.skip_anchors = True
-        self.default_encoding = default_encoding
-        self._encoding = None
-        self._html = html.encode(DEFAULT_ENCODING) if isinstance(html, str) else html
-        self._lxml = None
-        self._pq = None
         self.br_session = br_session
-
-        self.cleaner = Cleaner()
-        self.cleaner.javascript = True
-        self.cleaner.style = True
 
     # BrowserSession methods that accept a `selector` parameter
     pass_to_session = {
@@ -103,9 +82,25 @@ class BaseParser:
 
     @property
     def css_path(self) -> str:
-        # returns css selector of the element
-        xpath = self.element.getroottree().getelementpath(self.element)
-        return re.sub(r'\[(\d+)\]', r':nth-of-type(\1)', ' > '.join(xpath.strip('/').split('/')))
+        '''
+        Returns the CSS selector of the element
+        '''
+        node = self.element
+        elems: List[str] = []
+        count: int
+        while True:
+            count = 0
+            target_id = node.mem_id
+            if node.tag == 'html' or not node.parent:
+                break
+            for elem in node.parent.iter():
+                if elem.tag == node.tag:
+                    count += 1
+                    if elem.mem_id == target_id:
+                        elems.append(f'{node.tag}:nth-of-type({count})')
+                        node = node.parent
+                        break
+        return ' > '.join(elems[::-1])
 
     @property
     def raw_html(self) -> bytes:
@@ -113,10 +108,7 @@ class BaseParser:
         Bytes representation of the HTML content.
         (`learn more <http://www.diveintopython3.net/strings.html>`_).
         """
-        if self._html:
-            return self._html
-        else:
-            return etree.tostring(self.element, encoding='unicode').strip().encode(self.encoding)
+        return self.element.raw_html
 
     @property
     def html(self) -> str:
@@ -124,69 +116,7 @@ class BaseParser:
         Unicode representation of the HTML content
         (`learn more <http://www.diveintopython3.net/strings.html>`_).
         """
-        if self._html:
-            return self.raw_html.decode(self.encoding, errors='replace')
-        else:
-            return etree.tostring(self.element, encoding='unicode').strip()
-
-    @html.setter
-    def html(self, html: str) -> None:
-        self._html = html.encode(self.encoding)
-
-    @raw_html.setter
-    def raw_html(self, html: bytes) -> None:
-        """Property setter for self.html."""
-        self._html = html
-
-    @property
-    def encoding(self) -> str:
-        """
-        The encoding string to be used, extracted from the HTML and
-        :class:`HTMLResponse <HTMLResponse>` headers.
-        """
-        if self._encoding:
-            return self._encoding
-
-        # Scan meta tags for charset.
-        if self._html:
-            self._encoding = html_to_unicode(self.default_encoding, self._html)[0]
-            # Fall back to requests' detected encoding if decode fails.
-            try:
-                self.raw_html.decode(self.encoding, errors='replace')
-            except UnicodeDecodeError:
-                self._encoding = self.default_encoding
-
-        return self._encoding or self.default_encoding
-
-    @encoding.setter
-    def encoding(self, enc: str) -> None:
-        """Property setter for self.encoding."""
-        self._encoding = enc
-
-    @property
-    def pq(self) -> PyQuery:
-        """
-        `PyQuery <https://pythonhosted.org/pyquery/>`_ representation
-        of the :class:`Element <Element>` or :class:`HTML <HTML>`.
-        """
-        if self._pq is None:
-            self._pq = PyQuery(self.lxml)
-
-        return self._pq
-
-    @property
-    def lxml(self) -> HtmlElement:
-        """
-        `lxml <http://lxml.de>`_ representation of the
-        :class:`Element <Element>` or :class:`HTML <HTML>`.
-        """
-        if self._lxml is None:
-            try:
-                self._lxml = soup_parse(self.html, features='html.parser')
-            except ValueError:
-                self._lxml = lxml.html.fromstring(self.raw_html)
-
-        return self._lxml
+        return self.element.html
 
     @property
     def text(self) -> str:
@@ -194,7 +124,17 @@ class BaseParser:
         The text content of the
         :class:`Element <Element>` or :class:`HTML <HTML>`.
         """
-        return self.pq.text()
+        return self.get_text()
+
+    def get_text(self, children=True, separator='\n', strip=False) -> str:
+        '''
+        Get the text of the element, including its children.
+        Args:
+            children: Whether or not to include the children.
+            separator: The separator to use between the text of the children.
+            strip: Whether or not to strip the text.
+        '''
+        return self.element.text(separator=separator, strip=strip, deep=children)
 
     @property
     def full_text(self) -> str:
@@ -202,16 +142,23 @@ class BaseParser:
         The full text content (including links) of the
         :class:`Element <Element>` or :class:`HTML <HTML>`.
         """
-        return self.lxml.text_content()
+        return self.element.text_content
+
+    kwarg_map = {
+        'class_': 'class',
+        'type_': 'type',
+        'for_': 'for',
+        'accept_charset': 'accept-charset',
+        'http_equiv': 'http-equiv',
+    }
 
     def find_all(
         self,
         selector: str = "*",
         *,
         containing: _Containing = None,
-        clean: bool = False,
         first: bool = False,
-        _encoding: str = None,
+        **kwargs,
     ) -> _Find:
         """
         Given a CSS Selector, returns a list of
@@ -222,7 +169,6 @@ class BaseParser:
             clean: Whether or not to sanitize the found HTML of ``<script>`` and ``<style>`` tags.
             containing: If specified, only return elements that contain the provided text.
             first: Whether or not to return just the first result.
-            _encoding: The encoding format.
 
         Returns:
             A list of :class:`Element <Element>` objects or a single one.
@@ -239,16 +185,31 @@ class BaseParser:
         :class:`Element <Element>` found.
         """
 
-        # Convert a single containing into a list.
+        # convert a single containing into a list
         if isinstance(containing, str):
             containing = [containing]
 
-        encoding = _encoding or self.encoding
+        # merge kwargs into a selector string
+        if kwargs:
+            # map kwargs that resemble built-in attributes to their css equivalents
+            for k, v in self.kwarg_map.items():
+                if k in kwargs:
+                    kwargs[v] = kwargs.pop(k)
+            selector = selector.rstrip() + ''.join(f'[{k}="{v}"]' for k, v in kwargs.items())
+
+        # find elements
+        if first:
+            found_css = (self.element.css_first(selector),)
+            # if no element was found, raise an exception
+            if not found_css[0]:
+                raise SelectorNotFoundException(
+                    f"No elements were found with selector '{selector}'."
+                )
+        else:
+            found_css = self.element.css(selector)
+
         elements = [
-            Element(
-                element=found, url=self.url, default_encoding=encoding, br_session=self.br_session
-            )
-            for found in self.pq(selector)
+            Element(element=found, url=self.url, br_session=self.br_session) for found in found_css
         ]
 
         if containing:
@@ -260,74 +221,27 @@ class BaseParser:
             ]
             elements.reverse()
 
-        # Sanitize the found HTML.
-        if clean:
-            elements_copy = elements.copy()
-            elements = []
-
-            for element in elements_copy:
-                element.raw_html = lxml_html_tostring(self.cleaner.clean_html(element.lxml))
-                elements.append(element)
-
         return _get_first_or_list(elements, first)
 
     def find(
         self,
         selector: str = "*",
         *,
+        exception_handler: Optional[callable] = None,
         containing: _Containing = None,
-        clean: bool = False,
-        _encoding: str = None,
+        **kwargs,
     ) -> _Find:
         # Wrapper around find_all with first=True.
-        return self.find_all(
-            selector=selector, containing=containing, clean=clean, first=True, _encoding=_encoding
-        )
-
-    def xpath(
-        self, selector: str, *, clean: bool = False, first: bool = False, _encoding: str = None
-    ) -> _XPath:
-        """
-        Given an XPath selector, returns a list of Element objects or a single one.
-
-        Args:
-            selector (str): XPath Selector to use.
-            clean (bool, optional): Whether or not to sanitize the found HTML of <script> and <style> tags. Defaults to False.
-            first (bool, optional): Whether or not to return just the first result. Defaults to False.
-            _encoding (str, optional): The encoding format. Defaults to None.
-
-        Returns:
-            _XPath: A list of Element objects or a single one.
-
-        If a sub-selector is specified (e.g. //a/@href), a simple list of results is returned.
-        See W3School's XPath Examples for more details.
-
-        If first is True, only returns the first Element found.
-        """
-        selected = self.lxml.xpath(selector)
-
-        elements = [
-            str(selection)
-            if isinstance(selection, etree._ElementUnicodeResult)
-            else Element(
-                element=selection,
-                url=self.url,
-                default_encoding=_encoding or self.encoding,
-                br_session=self.br_session,
+        try:
+            return self.find_all(
+                selector=selector,
+                containing=containing,
+                first=True,
+                **kwargs,
             )
-            for selection in selected
-        ]
-
-        # Sanitize the found HTML.
-        if clean:
-            elements_copy = elements.copy()
-            elements = []
-
-            for element in elements_copy:
-                element.raw_html = lxml_html_tostring(self.cleaner.clean_html(element.lxml))
-                elements.append(element)
-
-        return _get_first_or_list(elements, first)
+        except SelectorNotFoundException:
+            if exception_handler:
+                return exception_handler()
 
     def search(self, template: str) -> Result:
         """
@@ -434,18 +348,12 @@ class Element(BaseParser):
     Args:
         element: The element from which to base the parsing upon.
         url: The URL from which the HTML originated, used for ``absolute_links``.
-        default_encoding: Which encoding to default to.
     """
 
     __slots__ = [
         'element',
         'url',
         'skip_anchors',
-        'default_encoding',
-        '_encoding',
-        '_html',
-        '_lxml',
-        '_pq',
         '_attrs',
         'session',
     ]
@@ -455,15 +363,11 @@ class Element(BaseParser):
         *,
         element,
         url: str,
-        default_encoding: str = None,
         br_session: Optional[weakref.CallableProxyType] = None,
     ) -> None:
-        super(Element, self).__init__(
-            element=element, url=url, default_encoding=default_encoding, br_session=br_session
-        )
+        super(Element, self).__init__(element=element, url=url, br_session=br_session)
         self.element = element
         self.tag = element.tag
-        self.lineno = element.sourceline
         self._attrs = None
 
     def __repr__(self) -> str:
@@ -472,12 +376,12 @@ class Element(BaseParser):
 
     @property
     def attrs(self) -> MutableMapping:
-        """R
-        eturns a dictionary of the attributes of the :class:`Element <Element>`
+        """
+        Returns a dictionary of the attributes of the :class:`Element <Element>`
         (`learn more <https://www.w3schools.com/tags/ref_attributes.asp>`_).
         """
         if self._attrs is None:
-            self._attrs = dict(self.element.items())
+            self._attrs = self.element.attributes
 
             # Split class and rel up, as there are usually many of them:
             for attr in ['class', 'rel']:
@@ -486,6 +390,13 @@ class Element(BaseParser):
 
         return self._attrs
 
+    def __getattr__(self, name):
+        if name in self.attrs:
+            return self.attrs[name]
+        if name in self.kwarg_map:
+            return self.attrs[self.kwarg_map[name]]
+        return super().__getattr__(name)
+
 
 class HTML(BaseParser):
     """An HTML document, ready for parsing.
@@ -493,7 +404,6 @@ class HTML(BaseParser):
     Args:
         url (str): The URL from which the HTML originated, used for ``absolute_links``.
         html (Optional[_HTML]): HTML from which to base the parsing upon.
-        default_encoding (str): Which encoding to default to.
 
     Attributes:
         session (Union[hrequests.session.TLSSession, hrequests.browser.BrowserSession]): The session used for the HTML request.
@@ -507,18 +417,12 @@ class HTML(BaseParser):
         ] = None,
         url: str = DEFAULT_URL,
         html: _HTML,
-        default_encoding: str = DEFAULT_ENCODING,
     ) -> None:
         # Convert incoming unicode HTML into bytes.
-        if isinstance(html, str):
-            html = html.encode(DEFAULT_ENCODING)
-
-        pq = PyQuery(html)
+        element = selectolax.lexbor.LexborHTMLParser(html)
         super(HTML, self).__init__(
-            element=pq('html') or pq.wrapAll('<html></html>')('html'),
-            html=html,
+            element=element,
             url=url,
-            default_encoding=default_encoding,
             br_session=weakref.proxy(session)
             if hasattr(hrequests, 'browser')  # if the browser module is imported
             and isinstance(

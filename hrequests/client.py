@@ -1,14 +1,14 @@
-import ctypes
 import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 from urllib.parse import urlencode
 
+from geventhttpclient import HTTPClient
 from orjson import dumps, loads
 
 import hrequests
+from hrequests.cffi import PORT, destroySession
 
-from .cffi import freeMemory, request
 from .cookies import (
     RequestsCookieJar,
     cookiejar_from_dict,
@@ -242,18 +242,39 @@ class TLSClient:
         self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
         self.proxies: dict = self.proxies or {}
 
+        # http client for local go server
+        self.server: HTTPClient = HTTPClient(
+            '127.0.0.1', PORT, ssl=False, insecure=True, connection_timeout=1e9, network_timeout=1e9
+        )
         # CookieJar containing all currently outstanding cookies set on this session
         self.cookies: RequestsCookieJar = self.cookies or RequestsCookieJar()
+        self._closed: bool = False  # indicate if session is closed
 
-    def execute_request(
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            destroySession(self._session_id)
+            self.server.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
+    def build_request(
         self,
         method: str,
         url: str,
-        data: Optional[Union[str, bytes, bytearray, dict]] = None,
         headers: Optional[Union[dict, CaseInsensitiveDict]] = None,
+        data: Optional[Union[str, bytes, bytearray, dict]] = None,
         cookies: Optional[Union[RequestsCookieJar, dict, list]] = None,
         json: Optional[Union[dict, list, str]] = None,
         allow_redirects: bool = False,
+        history: bool = True,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
         proxy: Optional[dict] = None,
@@ -316,6 +337,7 @@ class TLSClient:
         request_payload = {
             'sessionId': self._session_id,
             'followRedirects': allow_redirects,
+            'wantHistory': history,
             'forceHttp1': self.force_http1,
             'withDebug': self.debug,
             'catchPanics': self.catch_panics,
@@ -352,18 +374,16 @@ class TLSClient:
             request_payload['tlsClientIdentifier'] = self.client_identifier
             request_payload['withRandomTLSExtensionOrder'] = self.random_tls_extension_order
 
-        # this is a pointer to the response
-        response = request(dumps(request_payload))
-        # dereference the pointer to a byte array
-        # convert response string to json
-        response_object = loads(ctypes.string_at(response))
-        # free the memory
-        freeMemory(response_object['id'].encode('utf-8'))
+        return request_payload, headers
 
-        # Error handling
+    def build_response_obj(
+        self,
+        url: str,
+        headers: Optional[Union[dict, CaseInsensitiveDict]],
+        response_object: dict,
+    ):
         if response_object['status'] == 0:
             raise ClientException(response_object['body'])
-
         # Set response cookies
         response_cookie_jar = extract_cookies_to_jar(
             request_url=url,
@@ -373,3 +393,48 @@ class TLSClient:
         )
         # build response class
         return hrequests.response.build_response(response_object, response_cookie_jar)
+
+    def build_response(
+        self,
+        url,
+        headers: Optional[Union[dict, CaseInsensitiveDict]],
+        response_object: dict,
+    ):  # sourcery skip: assign-if-exp
+        history: list = []
+        if not response_object['isHistory']:
+            return self.build_response_obj(url, headers, response_object['response'])
+        resps: list = response_object['history']
+        for index, item in enumerate(resps):
+            if index:  # > 0
+                # get the location redirect url from the previous response
+                item_url = resps[index - 1]['headers']['Location'][0]
+            else:
+                # use the original url
+                item_url = url
+            history.append(self.build_response_obj(item_url, headers, item))
+        # assign history to last response
+        resp = history[-1]
+        resp.history = history[:-1]
+        return resp
+
+    def execute_request(
+        self,
+        method: str,
+        url: str,
+        headers: Optional[Union[dict, CaseInsensitiveDict]] = None,
+        *args,
+        **kwargs,
+    ):
+        '''
+        execute a single request and return a response object
+        '''
+        # build request payload
+        request_payload, headers = self.build_request(method, url, headers, *args, **kwargs)
+        try:
+            # send request
+            resp = self.server.post(f'http://127.0.0.1:{PORT}/request', body=dumps(request_payload))
+            response_object = loads(resp.read())
+        except Exception as e:
+            raise ClientException('Request failed') from e
+        # build response class
+        return self.build_response(url, headers, response_object)
