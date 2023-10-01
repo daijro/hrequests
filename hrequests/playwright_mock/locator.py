@@ -10,7 +10,7 @@ def attach_dyn_propr(instance, prop_name, propr):
       * https://stackoverflow.com/a/1355444/509706
       * https://stackoverflow.com/questions/48448074
     """
-    class_name = instance.__class__.__name__ + "Child"
+    class_name = f"{instance.__class__.__name__}Child"
     child_class = type(class_name, (instance.__class__,), {prop_name: propr})
 
     instance.__class__ = child_class

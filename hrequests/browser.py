@@ -477,9 +477,9 @@ class BrowserSession:
 
     @property
     def html(self) -> 'hrequests.parser.HTML':
-        '''Get the page html as anHTML object'''
+        '''Get the page html as an HTML object'''
         return hrequests.parser.HTML(
-            session=self, url=self.url, html=self.content, default_encoding='utf-8'
+            session=self, url=self.url, html=self.content
         )
 
     @property

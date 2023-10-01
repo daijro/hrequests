@@ -12,13 +12,8 @@ import hrequests
 from hrequests.exceptions import NotRenderedException, SelectorNotFoundException
 
 """
-Based off https://github.com/psf/requests-html/blob/master/requests_html.py
+Parser structure inspired by https://github.com/psf/requests-html/blob/master/requests_html.py
 Copyright 2018 Kenneth Reitz
-
-Used as an alternative to beautifulsoup4:
-==== Total trials: 100000 =====
-bs4 total time: 52.6
-pq total time: 7.5
 """
 
 
@@ -146,8 +141,8 @@ class BaseParser:
 
     kwarg_map = {
         'class_': 'class',
-        'type_': 'type',
         'for_': 'for',
+        'async_': 'async',
         'accept_charset': 'accept-charset',
         'http_equiv': 'http-equiv',
     }
@@ -155,6 +150,7 @@ class BaseParser:
     def find_all(
         self,
         selector: str = "*",
+        other_kwargs: Optional[MutableMapping] = None,
         *,
         containing: _Containing = None,
         first: bool = False,
@@ -190,11 +186,13 @@ class BaseParser:
             containing = [containing]
 
         # merge kwargs into a selector string
-        if kwargs:
+        if kwargs or other_kwargs:
             # map kwargs that resemble built-in attributes to their css equivalents
             for k, v in self.kwarg_map.items():
                 if k in kwargs:
                     kwargs[v] = kwargs.pop(k)
+            if other_kwargs:  # add passed dict to kwargs
+                kwargs.update(other_kwargs)
             selector = selector.rstrip() + ''.join(f'[{k}="{v}"]' for k, v in kwargs.items())
 
         # find elements
@@ -226,6 +224,7 @@ class BaseParser:
     def find(
         self,
         selector: str = "*",
+        other_kwargs: Optional[MutableMapping] = None,
         *,
         exception_handler: Optional[callable] = None,
         containing: _Containing = None,
@@ -235,6 +234,7 @@ class BaseParser:
         try:
             return self.find_all(
                 selector=selector,
+                other_kwargs=other_kwargs,
                 containing=containing,
                 first=True,
                 **kwargs,

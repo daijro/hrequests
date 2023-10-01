@@ -21,18 +21,10 @@ class Faker(AsyncObject):
                 # self.useragent = data.get("ua")
                 self.vendor: str = data.get("vendor")
                 self.renderer: str = data.get("renderer")
-                self.width: int = data.get("width", 0)
-                self.height: int = data.get("height", 0)
-                self.avail_width: int = data.get("availWidth", 0)
-                self.avail_height: int = data.get("availHeight", 0)
-                # If the Window is too small for the captcha
-                if (
-                    self.width
-                    and self.height > 810
-                    and self.avail_height > 810
-                    and self.avail_width > 810
-                ):
-                    return
+                self.width: int = data.get("width", 1280)
+                self.height: int = data.get("height", 720)
+                self.avail_width: int = data.get("availWidth", 1280)
+                self.avail_height: int = data.get("availHeight", 720)
         except Exception:
             # If Bablosoft Website is offline
             # self.useragent = UserAgent().msie
