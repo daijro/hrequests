@@ -9,6 +9,7 @@ import rich.progress
 from httpx import get, stream
 from orjson import loads
 
+
 root_dir = os.path.abspath(os.path.dirname(__file__))
 
 # map machine architecture to hrequests-cgo binary name
@@ -30,6 +31,9 @@ arch_map = {
 
 
 class LibraryManager:
+    # specify specific version of hrequests-cgo library
+    BRIDGE_VERSION = '1.'
+
     def __init__(self):
         self.parent_path = os.path.join(root_dir, 'bin')
         self.file_cont, self.file_ext = self.get_name()
@@ -50,8 +54,12 @@ class LibraryManager:
 
     def check_library(self):
         for file in os.listdir(self.parent_path):
-            if file.endswith(self.file_ext):
+            if not file.endswith(self.file_ext):
+                continue
+            if file.startswith(f'hrequests-cgo-{self.BRIDGE_VERSION}'):
                 return file
+            # delete residual files from previous versions
+            os.remove(os.path.join(self.parent_path, file))
         self.download_library()
         return self.check_library()
 
