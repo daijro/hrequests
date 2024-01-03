@@ -287,4 +287,5 @@ def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Re
         cookies=res_cookies,
         # add response body
         _text=res["body"],
+        _content=res["content"] if "content" in res else None,
     )
