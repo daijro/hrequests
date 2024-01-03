@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+import tempfile
 from typing import Dict, List, Optional, Union
 from urllib.parse import urlencode
 
@@ -431,9 +432,15 @@ class TLSClient:
         # build request payload
         request_payload, headers = self.build_request(method, url, headers, *args, **kwargs)
         try:
-            # send request
-            resp = self.server.post(f'http://127.0.0.1:{PORT}/request', body=dumps(request_payload))
-            response_object = loads(resp.read())
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_bytes_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+                temp_bytes_file.close()  # have to close this here to avoid write permission issues
+                request_payload["streamOutputPath"] = temp_bytes_file.name
+                # send request
+                resp = self.server.post(f"http://127.0.0.1:{PORT}/request", body=dumps(request_payload))
+                response_object = loads(resp.read())
+                with open(temp_bytes_file.name, "rb") as f:  # load bytes from intermediate file
+                    response_object['response']["content"] = f.read()  # add bytes content to response_object
         except Exception as e:
             raise ClientException('Request failed') from e
         # build response class
