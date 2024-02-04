@@ -6,7 +6,6 @@ package main
 import "C"
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"os"
 	"sync"
 	"unicode/utf8"
+
+	"github.com/cristalhq/base64"
 
 	http "github.com/bogdanfinn/fhttp"
 	tls_client_cffi "github.com/bogdanfinn/tls-client/cffi_src"
@@ -369,7 +370,7 @@ func BuildResponse(
 
 	var finalResponse string
 
-	isBase64 := detect && utf8.Valid(respBodyBytes)
+	isBase64 := detect && !utf8.Valid(respBodyBytes)
 	if isBase64 {
 		finalResponse = base64.StdEncoding.EncodeToString(respBodyBytes)
 	} else {

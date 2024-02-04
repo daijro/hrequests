@@ -169,7 +169,7 @@ Getting the response body:
 >>> resp.content: bytes
 b'<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta charset="UTF-8"><meta content="origin" name="referrer"><m...'
 >>> resp.encoding: str
-'WINDOWS-1250'
+'UTF-8'
 ```
 
 Parse the response body as JSON:

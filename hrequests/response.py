@@ -290,5 +290,5 @@ def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Re
         # add response body
         raw=res["body"],
         # if response was utf-8 validated
-        is_utf8=res.get('isBase64', False),
+        is_utf8=not res.get('isBase64'),
     )
