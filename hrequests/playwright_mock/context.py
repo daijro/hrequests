@@ -12,9 +12,9 @@ async def new_context(inst, proxy, faker, mock_human, user_agent, **launch_argum
         user_agent=user_agent,
         viewport={'width': faker.width, 'height': faker.height},
         proxy=proxy.browser_proxy,
-        http_credentials={'username': proxy.username, 'password': proxy.password}
-        if proxy.username
-        else None,
+        http_credentials=(
+            {'username': proxy.username, 'password': proxy.password} if proxy.username else None
+        ),
         **launch_arguments,
     )
 

@@ -2,17 +2,21 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
-from json import detect_encoding
 from typing import Callable, Iterable, List, Literal, Optional, Union
-
-from orjson import dumps, loads
 
 import hrequests
 from hrequests.cffi import PORT
 from hrequests.exceptions import ClientException
+from orjson import dumps, loads
 
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict, FileUtils
+import cchardet as chardet
+
+try:
+    import turbob64 as base64
+except ImportError:
+    import base64
 
 
 class ProcessResponse:
@@ -63,6 +67,8 @@ class ProcessResponse:
                 cookies=self.cookies,
                 **self.kwargs,
             )
+        except ClientException as e:
+            raise e
         except IOError as e:
             raise ClientException('Connection error') from e
         resp.session = None if self.session.temp else self.session
@@ -135,44 +141,37 @@ class Response:
     status_code: int
     headers: 'hrequests.client.CaseInsensitiveDict'
     cookies: RequestsCookieJar
-    _text: Optional[str] = None
-    _content: Optional[Union[str, bytes]] = None
+    raw: Union[str, bytes] = None
 
     # set by ProcessResponse
     history: Optional[List['Response']] = None
-    session: Optional[
-        Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']
-    ] = None
+    session: Optional[Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']] = (
+        None
+    )
     browser: Optional[Literal['firefox', 'chrome']] = None
     elapsed: Optional[timedelta] = None
+    encoding: str = 'UTF-8'
+    is_utf8: bool = True
+
+    def __post_init__(self) -> None:
+        if type(self.raw) is bytes:
+            self.encoding = chardet.detect(self.raw)['encoding']
 
     @property
-    def reason(self):
+    def reason(self) -> str:
         return status_codes[self.status_code]
 
     def json(self, **kwargs) -> Union[dict, list]:
-        # use faster json processing
         return loads(self.content, **kwargs)
 
     @property
-    def encoding(self) -> Optional[str]:
-        if type(self._content) is bytes:
-            return detect_encoding(self._content)
-
-    @property
-    def content(self) -> Union[str, bytes]:  # sourcery skip: reintroduce-else
-        if self._content is not None:
-            return self._content
-        return self._text
+    def content(self) -> bytes:
+        # note: this will convert the content to bytes on each access
+        return self.raw if type(self.raw) is bytes else self.raw.encode(self.encoding)
 
     @property
     def text(self) -> str:
-        if self._text is not None:
-            return self._text
-        if type(self._content) is not bytes:
-            return self._content
-        self._text = self._content.decode()
-        return self._text
+        return self.raw if type(self.raw) is str else self.raw.decode(self.encoding)
 
     @property
     def html(self) -> 'hrequests.parser.HTML':
@@ -185,7 +184,7 @@ class Response:
     @property
     def find(self) -> Callable:
         return self.html.find
-    
+
     @property
     def find_all(self) -> Callable:
         return self.html.find_all
@@ -223,7 +222,7 @@ class Response:
         return hrequests.browser.render(
             response=self,
             session=self.session,
-            proxy=self.session.proxies if self.session else None,
+            proxy=self.session.proxy if self.session else None,
             headless=headless,
             mock_human=mock_human,
             extensions=extensions,
@@ -276,6 +275,9 @@ def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Re
             header_key: header_value[0] if len(header_value) == 1 else header_value
             for header_key, header_value in res["headers"].items()
         }
+    # decode bytes response
+    if res.get('isBase64'):
+        res['body'] = base64.b64decode(res['body'].encode())
     return Response(
         # add target / url
         url=res["target"],
@@ -286,5 +288,7 @@ def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Re
         # add cookies
         cookies=res_cookies,
         # add response body
-        _text=res["body"],
+        raw=res["body"],
+        # if response was utf-8 validated
+        is_utf8=res.get('isBase64', False),
     )

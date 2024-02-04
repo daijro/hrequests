@@ -44,6 +44,7 @@
 - Human-like cursor movement and typing
 - Chrome and Firefox extension support
 - Full page screenshots
+- Proxy support
 - Headless and headful support
 - No CORS restrictions
 
@@ -52,6 +53,7 @@
 - High performance ✨
 - Minimal dependence on the python standard libraries
 - HTTP backend written in Go
+- Automatic gzip & brotli decode
 - Written with type safety
 - 100% threadsafe ❤️
 
@@ -87,7 +89,7 @@ pip install -U hrequests
 
 # Documentation
 
-**Gitbook documentation is available [here](https://daijro.gitbook.io/hrequests/).**
+**For the latest stable hrequests documentation, check the [Gitbook page](https://daijro.gitbook.io/hrequests/).**
 
 1. [Simple Usage](https://github.com/daijro/hrequests#simple-usage)
 2. [Sessions](https://github.com/daijro/hrequests#sessions)
@@ -127,7 +129,7 @@ Parameters:
     history (bool, optional): Remember request history. Defaults to False.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
-    proxies (dict, optional): Dictionary of proxies. Defaults to None.
+    proxy (str, optional): Proxy URL. Defaults to None.
     nohup (bool, optional): Run the request in the background. Defaults to False.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
@@ -164,8 +166,10 @@ Getting the response body:
 ```py
 >>> resp.text: str
 '<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta charset="UTF-8"><meta content="origin" name="referrer"><m...'
->>> resp.content: Union[bytes, str]
-'<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta charset="UTF-8"><meta content="origin" name="referrer"><m...'
+>>> resp.content: bytes
+b'<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en"><head><meta charset="UTF-8"><meta content="origin" name="referrer"><m...'
+>>> resp.encoding: str
+'WINDOWS-1250'
 ```
 
 Parse the response body as JSON:
@@ -204,7 +208,7 @@ Creating a new Chrome Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('chrome', version=117)
+>>> session = hrequests.Session('chrome', version=120)
 ```
 
 <details>
@@ -218,9 +222,14 @@ Parameters:
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (float, optional): Default timeout in seconds. Defaults to 30.
+    proxy (str, optional): Proxy URL. Defaults to None.
+    cookies (Union[RequestsCookieJar, dict, list], optional): Cookie Jar, or cookie list/dict to send. Defaults to None.
+    certificate_pinning (Dict[str, List[str]], optional): Certificate pinning. Defaults to None.
+    disable_ipv6 (bool, optional): Disable IPv6. Defaults to False.
+    detect_encoding (bool, optional): Detect encoding. Defaults to True.
     ja3_string (str, optional): JA3 string. Defaults to None.
     h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
-    additional_decode (str, optional): Additional decode. Defaults to None.
+    additional_decode (str, optional): Decode response body with "gzip" or "br". Defaults to None.
     pseudo_header_order (list, optional): Pseudo header order. Defaults to None.
     priority_frames (list, optional): Priority frames. Defaults to None.
     header_order (list, optional): Header order. Defaults to None.
@@ -247,9 +256,15 @@ Parameters:
     os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
     headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
+    timeout (float, optional): Default timeout in seconds. Defaults to 30.
+    proxy (str, optional): Proxy URL. Defaults to None.
+    cookies (Union[RequestsCookieJar, dict, list], optional): Cookie Jar, or cookie list/dict to send. Defaults to None.
+    certificate_pinning (Dict[str, List[str]], optional): Certificate pinning. Defaults to None.
+    disable_ipv6 (bool, optional): Disable IPv6. Defaults to False.
+    detect_encoding (bool, optional): Detect encoding. Defaults to True.
     ja3_string (str, optional): JA3 string. Defaults to None.
     h2_settings (dict, optional): HTTP/2 settings. Defaults to None.
-    additional_decode (str, optional): Additional decode. Defaults to None.
+    additional_decode (str, optional): Decode response body with "gzip" or "br". Defaults to None.
     pseudo_header_order (list, optional): Pseudo header order. Defaults to None.
     priority_frames (list, optional): Priority frames. Defaults to None.
     header_order (list, optional): Header order. Defaults to None.
@@ -387,7 +402,7 @@ Parameters:
     history (bool, optional): Remember request history. Defaults to False.
     verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
     timeout (float, optional): Timeout in seconds. Defaults to 30.
-    proxies (dict, optional): Dictionary of proxies. Defaults to None.
+    proxy (str, optional): Proxy URL. Defaults to None.
     <Additionally includes all parameters from `hrequests.Session` if a session was not specified>
 
 Returns:
@@ -579,6 +594,7 @@ Parameters:
     clean: Whether or not to sanitize the found HTML of ``<script>`` and ``<style>``
     containing: If specified, only return elements that contain the provided text.
     first: Whether or not to return just the first result.
+    raise_exception: Raise an exception if no elements are found. Default is True.
     _encoding: The encoding format.
 
 Returns:
@@ -684,7 +700,7 @@ Parameters:
     headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
     session (hrequests.session.TLSSession, optional): Session to use for headers, cookies, etc.
     resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
-    proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
+    proxy (str, optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
     browser (Literal['firefox', 'chrome'], optional): Generate useragent headers for a specific browser
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS

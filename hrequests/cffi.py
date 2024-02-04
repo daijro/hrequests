@@ -1,6 +1,5 @@
 import ctypes
 import os
-import socket
 from platform import machine
 from sys import platform
 from typing import Tuple
@@ -32,7 +31,7 @@ arch_map = {
 
 class LibraryManager:
     # specify specific version of hrequests-cgo library
-    BRIDGE_VERSION = '1.'
+    BRIDGE_VERSION = '2.'
 
     def __init__(self):
         self.parent_path = os.path.join(root_dir, 'bin')
@@ -96,15 +95,6 @@ class LibraryManager:
                     progress.update(download_task, completed=resp.num_bytes_downloaded)
 
 
-def GetOpenPort() -> int:
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))
-    s.listen(1)
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
 class GoString(ctypes.Structure):
     # wrapper around Go's string type
     _fields_ = [("p", ctypes.c_char_p), ("n", ctypes.c_longlong)]
@@ -112,28 +102,44 @@ class GoString(ctypes.Structure):
 
 # load the shared package
 libman = LibraryManager()
-
 library = ctypes.cdll.LoadLibrary(libman.full_path)
 del libman
 
-# extract the exposed destroySession function
+# extract the exposed DestroySession function
 library.DestroySession.argtypes = [GoString]
 library.DestroySession.restype = ctypes.c_void_p
 
 
-def destroySession(session_id: str):
+def destroy_session(session_id: str):
     encoded_session_id = session_id.encode('utf-8')
     library.DestroySession(GoString(encoded_session_id, len(encoded_session_id)))
 
 
+# extract the exposed GetOpenPort function
+library.GetOpenPort.restype = ctypes.c_int
+
+
+def GetOpenPort():
+    return library.GetOpenPort()
+
+
 # spawn the server
 PORT = GetOpenPort()
+if not PORT:
+    raise OSError('Could not find an open port.')
+
+# extract the exposed StartServer and StopServer functions
 library.StartServer.argtypes = [GoString]
+library.StopServer.restype = ctypes.c_void_p
 
 
 def start_server():
     encoded_port = str(PORT).encode('utf-8')
     library.StartServer(GoString(encoded_port, len(encoded_port)))
+
+
+def stop_server():
+    library.StopServer()
 
 
 start_server()

@@ -1,3 +1,7 @@
+import contextlib
+import re
+from typing import Dict, Optional
+
 import httpx
 from async_class import AsyncObject, link
 
@@ -11,18 +15,36 @@ class ProxyCheckError(Exception):
 
 
 class ProxyManager(AsyncObject):
-    async def __ainit__(self, inst, proxy) -> None:
-        link(self, inst)
+    proxy: str = ""
+    http_proxy: Dict[str, str] = {}
+    browser_proxy: Optional[Dict[str, str]] = None
+    plain_proxy: str = ""
+    _httpx: httpx.AsyncClient
+    _phttpx: httpx.AsyncClient
+    ip: Optional[str] = None
+    port: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    country: Optional[str] = None
+    country_code: Optional[str] = None
+    latitude: Optional[str] = None
+    longitude: Optional[str] = None
+    timezone: Optional[str] = None
 
-        self.proxy = proxy.strip() if proxy else None
-        self.http_proxy = None
-        self.ip = None
-        self.port = None
-        self.username = None
-        self.password = None
-        self.browser_proxy = None
-        self.plain_proxy = None
+    async def __ainit__(self, botright, proxy: str) -> None:
+        """
+        Initialize a ProxyManager instance with a proxy string and perform proxy checks.
+
+        Args:
+            botright: An instance of Botright for linking purposes.
+            proxy (str): The proxy string to be managed and checked.
+        """
+        link(self, botright)
+
+        self.proxy = proxy
+
         self.timeout = httpx.Timeout(20.0, read=None)
+        self._httpx = httpx.AsyncClient()
 
         if self.proxy:
             self.split_proxy()
@@ -31,80 +53,109 @@ class ProxyManager(AsyncObject):
                 if self.username
                 else f"{self.ip}:{self.port}"
             )
-            self.plain_proxy = f"http://{self.proxy}"
+            self.plain_proxy = f"{self.schema}://{self.proxy}"
+            self._phttpx = httpx.AsyncClient(proxies={"all://": self.plain_proxy}, verify=False)
 
             if self.username:
                 self.browser_proxy = {
-                    "server": self.plain_proxy,
+                    "server": f"{self.ip}:{self.port}",
                     "username": self.username,
                     "password": self.password,
                 }
             else:
                 self.browser_proxy = {"server": self.plain_proxy}
 
-        self.http_proxy = (
-            {"http": self.http_proxy, "https": self.http_proxy} if self.proxy else None
-        )
+        else:
+            self._phttpx = self._httpx
 
-        self.phttpx = httpx.AsyncClient(proxies={"all://": self.plain_proxy})
-        self.httpx = httpx.AsyncClient()
-
-        await self.check_proxy()
+        await self.check_proxy(self._phttpx)
 
     async def __adel__(self) -> None:
-        await self.httpx.aclose()
-        await self.phttpx.aclose()
+        await self._httpx.aclose()
+        await self._phttpx.aclose()
 
-    def split_helper(self, split) -> None:
-        if not any(_.isdigit() for _ in split):
-            raise SplitError("No ProxyPort could be detected")
-        if split[1].isdigit():
-            self.ip, self.port, self.username, self.password = split
-        elif split[3].isdigit():
-            self.username, self.password, self.ip, self.port = split
-        else:
-            raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
+    proxy_reg: re.Pattern = re.compile(
+        '^(?P<schema>\w+)://'
+        '(?:'
+        '(?P<user>[^\:]+):'
+        '(?P<password>[^@]+)@)?'
+        '(?P<ip>.*?)'
+        '(?:\:'
+        '(?P<port>\d+))?$'
+    )
 
     def split_proxy(self) -> None:
-        split = self.proxy.split(":")
-        if len(split) == 2:
-            self.ip, self.port = split
-        elif len(split) == 3:
-            if "@" in self.proxy:
-                helper = [_.split(":") for _ in self.proxy.split("@")]
-                split = [x for y in helper for x in y]
-                self.split_helper(split)
-            else:
-                raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
-        elif len(split) == 4:
-            self.split_helper(split)
-        else:
-            raise SplitError(f"Proxy Format ({self.proxy}) isn't supported")
+        match = self.proxy_reg.match(self.proxy)
+        self.schema = match['schema']
+        self.username = match['user']
+        self.password = match['password']
+        self.ip = match['ip']
+        self.port = match['port']
 
-    async def check_proxy(self) -> None:
-        try:
-            ip_request = await self.phttpx.get(
-                "https://api.ipify.org?format=json", timeout=self.timeout
-            )
-            ip = ip_request.json().get("ip")
-        except Exception:
+    async def check_proxy(self, httpx_client: httpx.AsyncClient) -> None:
+        """
+        Check the validity of the proxy by making HTTP requests to determine its properties.
+
+        Args:
+            httpx_client (httpx.AsyncClient): The HTTPX client to use for proxy checks.
+        """
+        get_ip_apis = [
+            "https://api.ipify.org/?format=json",
+            "https://api.myip.com/",
+            "https://get.geojs.io/v1/ip.json",
+            "https://api.ip.sb/jsonip",
+            "https://l2.io/ip.json",
+        ]
+
+        for get_ip_api in get_ip_apis:
+            with contextlib.suppress(Exception):
+                ip_request = await httpx_client.get(get_ip_api, timeout=self.timeout)
+                ip = ip_request.json().get("ip")
+                break
+        else:
             raise ProxyCheckError("Could not get IP-Address of Proxy (Proxy is Invalid/Timed Out)")
-        try:
-            r = await self.httpx.get(f"http://ip-api.com/json/{ip}", timeout=self.timeout)
-            data = r.json()
-            self.country = data.get("country")
-            self.country_code = data.get("countryCode")
-            self.region = data.get("regionName")
-            self.city = data.get("city")
-            self.zip = data.get("zip")
-            self.latitude = data.get("lat")
-            self.longitude = data.get("lon")
-            self.timezone = data.get("timezone")
-            if not self.country:
-                raise ProxyCheckError(
-                    "Could not get GeoInformation from proxy (Proxy is probably not Indexed)"
-                )
-        except Exception as e:
+
+        get_geo_apis = {
+            "http://ip-api.com/json/{IP}": ("country", "countryCode", "lat", "lon", "timezone"),
+            "https://ipapi.co/{IP}/json": (
+                "country_name",
+                "country",
+                "latitude",
+                "longitude",
+                "timezone",
+            ),
+            "https://api.techniknews.net/ipgeo/{IP}": (
+                "country",
+                "countryCode",
+                "lat",
+                "lon",
+                "timezone",
+            ),
+            "https://get.geojs.io/v1/ip/geo/{IP}.json": (
+                "country",
+                "country_code",
+                "latitude",
+                "longitude",
+                "timezone",
+            ),
+        }
+
+        for get_geo_api, api_names in get_geo_apis.items():
+            with contextlib.suppress(Exception):
+                api_url = get_geo_api.format(IP=ip)
+                country, country_code, latitude, longitude, timezone = api_names
+                r = await self._httpx.get(api_url, timeout=self.timeout)
+                data = r.json()
+
+                self.country = data.get(country)
+                self.country_code = data.get(country_code)
+                self.latitude = data.get(latitude)
+                self.longitude = data.get(longitude)
+                self.timezone = data.get(timezone)
+
+                assert self.country
+                break
+        else:
             raise ProxyCheckError(
                 "Could not get GeoInformation from proxy (Proxy is probably not Indexed)"
-            ) from e
+            )

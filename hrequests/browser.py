@@ -30,7 +30,7 @@ class BrowserSession:
         headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
         session (hrequests.session.TLSSession, optional): Session to use for headers, cookies, etc.
         resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
-        proxy_ip (str, optional): Proxy to use for the browser. Example: 123.123.123
+        proxy (str, optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
         mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
         browser (Literal['firefox', 'chrome'], optional): Generate useragent headers for a specific browser
         os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
@@ -79,7 +79,7 @@ class BrowserSession:
         headless: bool = True,
         session: Optional[hrequests.session.TLSSession] = None,
         resp: Optional[hrequests.response.Response] = None,
-        proxy_ip: Optional[str] = None,
+        proxy: Optional[str] = None,
         mock_human: bool = False,
         browser: Optional[Literal['firefox', 'chrome']] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
@@ -106,7 +106,7 @@ class BrowserSession:
                 'User-Agent'
             ]
         # proxy variables
-        self.proxy_ip: Optional[str] = proxy_ip
+        self.proxy: Optional[str] = proxy
         # browser config
         self.status_code: Optional[int]
         if self.resp is not None:
@@ -135,7 +135,7 @@ class BrowserSession:
         self.context = await self.client.new_context(
             browser_name=self.browser,
             user_agent=self.ua,
-            proxy=self.proxy_ip,
+            proxy=self.proxy,
             mock_human=self.mock_human,
         )
         # create a new page
@@ -406,7 +406,7 @@ class BrowserSession:
             selector (str, optional): CSS selector to screenshot
             path (str, optional): Path to save screenshot to. Defaults to None.
             full_page (bool): Whether to take a screenshot of the full scrollable page. Cannot be used with selector. Defaults to False.
-            
+
         Returns:
             Optional[bytes]: Returns the screenshot buffer, if `path` was not provided
         '''
@@ -459,7 +459,7 @@ class BrowserSession:
 
     @property
     def proxies(self):
-        return {'all': self.proxy_ip} if self.proxy_ip else {}
+        return {'all': self.proxy} if self.proxy else {}
 
     @proxies.setter
     def proxies(self, _: dict):
@@ -478,14 +478,12 @@ class BrowserSession:
     @property
     def html(self) -> 'hrequests.parser.HTML':
         '''Get the page html as an HTML object'''
-        return hrequests.parser.HTML(
-            session=self, url=self.url, html=self.content
-        )
+        return hrequests.parser.HTML(session=self, url=self.url, html=self.content)
 
     @property
     def find(self) -> Callable:
         return self.html.find
-    
+
     @property
     def find_all(self) -> Callable:
         return self.html.find_all
@@ -543,7 +541,7 @@ class BrowserSession:
         )
         content = await pywr_resp.body()
         resp = Response(
-            _content=content,
+            raw=content,
             url=pywr_resp.url,
             status_code=pywr_resp.status,
             cookies=await self._getCookies(),
@@ -608,8 +606,7 @@ class BrowserSession:
         # update response
         if self.resp is not None:
             self.resp.cookies = cookiejar
-            self.resp._content = await self.page.content()
-            self.resp._text = None
+            self.resp.raw = await self.page.content()
             self.resp.url = self.page.url
             self.resp.status_code = self.status_code
         # close browser
@@ -622,7 +619,7 @@ class BrowserSession:
 def render(
     url: str = None,
     headless: bool = True,
-    proxy: dict = None,
+    proxy: str = None,
     response: hrequests.response.Response = None,
     session: hrequests.session.TLSSession = None,
     mock_human: bool = False,
@@ -633,12 +630,10 @@ def render(
         (url, session, response is not None)
     ), 'Must provide a url or an existing session, response'
 
-    if proxy:
-        proxy = list(proxy.values())[0]
     render_session = BrowserSession(
         session=session,
         resp=response,
-        proxy_ip=proxy,
+        proxy=proxy,
         headless=headless,
         mock_human=mock_human,
         extensions=extensions,

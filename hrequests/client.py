@@ -1,13 +1,13 @@
+import re
 import uuid
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlencode
 
-from geventhttpclient import HTTPClient
-from orjson import dumps, loads
-
 import hrequests
-from hrequests.cffi import PORT, destroySession
+from geventhttpclient import HTTPClient
+from hrequests.cffi import PORT, destroy_session
+from orjson import dumps, loads
 
 from .cookies import (
     RequestsCookieJar,
@@ -17,7 +17,7 @@ from .cookies import (
     list_to_cookiejar,
     merge_cookies,
 )
-from .exceptions import ClientException
+from .exceptions import ClientException, ProxyFormatException
 from .toolbelt import CaseInsensitiveDict
 
 try:
@@ -30,6 +30,17 @@ TLSClient heavily based on https://github.com/FlorianREGAZ/Python-Tls-Client
 Copyright (c) 2022 Florian Zager
 '''
 
+SUPPORTED_PROXIES: Set[str] = {'http', 'https', 'socks5'}
+PROXY_PATTERN: re.Pattern = re.compile(
+    rf"^(?:{'|'.join(SUPPORTED_PROXIES)})://(?:[^\:]+:[^@]+@)?.*?(?:\:\d+)?$"
+)
+
+
+def verify_proxy(proxy: str) -> None:
+    # verify that the proxy is valid with regex
+    if not PROXY_PATTERN.match(proxy):
+        raise ProxyFormatException(f'Invalid proxy: {proxy}')
+
 
 @dataclass
 class TLSClient:
@@ -38,8 +49,11 @@ class TLSClient:
     force_http1: bool = False
     catch_panics: bool = False
     debug: bool = False
-    proxies: Optional[dict] = None
+    proxy: Optional[str] = None
     cookies: Optional[RequestsCookieJar] = None
+    certificate_pinning: Optional[Dict[str, List[str]]] = None
+    disable_ipv6: bool = False
+    detect_encoding: bool = True  # only disable if you are confident the encoding is utf-8
 
     # custom TLS profile
     ja3_string: Optional[str] = None
@@ -57,16 +71,16 @@ class TLSClient:
     header_order: Optional[List[str]] = None
     header_priority: Optional[List[str]] = None
 
+    # backwards compatibility
+    proxies: Optional[Dict[str, str]] = None
+
     '''
     Synopsis:
     
     self.client_identifier examples:
-    - Chrome > chrome_103, chrome_104, chrome_105, chrome_106
-    - Firefox > firefox_102, firefox_104
-    - Opera > opera_89, opera_90
-    - Safari > safari_15_3, safari_15_6_1, safari_16_0
-    - iOS > safari_ios_15_5, safari_ios_15_6, safari_ios_16_0
-    - iPadOS > safari_ios_15_6
+    - Chrome > chrome_120 + other versions
+    - Firefox > firefox_117 + other versions
+    - see here for others: https://bogdanfinn.gitbook.io/open-source-oasis/tls-client/supported-and-tested-client-profiles
 
     self.ja3_string example:
     - 771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-17513,29-23-24,0
@@ -229,18 +243,19 @@ class TLSClient:
     }
     
     Proxies
-    self.proxies usage:
-    {
-        "http": "http://user:pass@ip:port",
-        "https": "http://user:pass@ip:port"
-    }
+    self.proxy usage:
+    - "http://user:pass@ip:port",
+    - "http://user:pass@ip:port"
     '''
 
     def __post_init__(self) -> None:
         self._session_id: str = str(uuid.uuid4())
 
         self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
-        self.proxies: dict = self.proxies or {}
+        # set first item of proxies to self.proxy (backwards compatibility)
+        if self.proxies:
+            self.proxy = self.unpack_proxy(self.proxies)
+            del self.proxies
 
         # http client for local go server
         self.server: HTTPClient = HTTPClient(
@@ -253,7 +268,7 @@ class TLSClient:
     def close(self):
         if not self._closed:
             self._closed = True
-            destroySession(self._session_id)
+            destroy_session(self._session_id)
             self.server.close()
 
     def __enter__(self):
@@ -264,6 +279,14 @@ class TLSClient:
 
     def __del__(self):
         self.close()
+
+    @staticmethod
+    def unpack_proxy(proxies: Dict[str, str]) -> str:
+        # unpack the proxy dict to a single string
+        key, value = next(iter(proxies.items()))
+        if key not in SUPPORTED_PROXIES:
+            raise ProxyFormatException(f'Proxy must be of the following type: {SUPPORTED_PROXIES}')
+        return value
 
     def build_request(
         self,
@@ -277,7 +300,7 @@ class TLSClient:
         history: bool = True,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
-        proxy: Optional[dict] = None,
+        proxy: Optional[Union[str, dict]] = None,
     ):
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
@@ -323,14 +346,9 @@ class TLSClient:
         # turn cookie jar into dict
 
         # Proxy
-        proxy = proxy or self.proxies
-
-        if type(proxy) is dict and 'http' in proxy:
-            proxy = proxy['http']
-        elif type(proxy) is str:
-            proxy = proxy
-        else:
-            proxy = ''
+        proxy = proxy or self.proxy
+        if proxy:
+            verify_proxy(proxy)
 
         # Request
         is_byte_request = isinstance(request_body, (bytes, bytearray))
@@ -345,16 +363,21 @@ class TLSClient:
             'headerOrder': self.header_order,
             'insecureSkipVerify': not verify,
             'isByteRequest': is_byte_request,
+            'detectEncoding': self.detect_encoding,
             'additionalDecode': self.additional_decode,
             'proxyUrl': proxy,
             'requestUrl': url,
             'requestMethod': method,
-            'requestBody': base64.b64encode(request_body).decode()
-            if is_byte_request
-            else request_body,
+            'requestBody': (
+                base64.b64encode(request_body).decode() if is_byte_request else request_body
+            ),
             'requestCookies': cookiejar_to_list(self.cookies),
             'timeoutMilliseconds': int(timeout * 1000),
+            'withoutCookieJar': True,
+            'disableIPv6': self.disable_ipv6,
         }
+        if self.certificate_pinning:
+            request_payload['certificatePinning'] = self.certificate_pinning
         if self.client_identifier is None:
             request_payload['customTlsClient'] = {
                 'ja3String': self.ja3_string,

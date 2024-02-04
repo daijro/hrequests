@@ -6,11 +6,14 @@ package main
 import "C"
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"sync"
+	"unicode/utf8"
 
 	http "github.com/bogdanfinn/fhttp"
 	tls_client_cffi "github.com/bogdanfinn/tls-client/cffi_src"
@@ -18,15 +21,29 @@ import (
 	"github.com/google/uuid"
 )
 
+var srv *http.Server
+
 /*
 Offers a http server that can be used to make requests to tls-client
 */
 
+type Response struct {
+	Id           string              `json:"id"`
+	Body         string              `json:"body"`
+	Cookies      map[string]string   `json:"cookies"`
+	Headers      map[string][]string `json:"headers"`
+	SessionId    string              `json:"sessionId,omitempty"`
+	Status       int                 `json:"status"`
+	Target       string              `json:"target"`
+	UsedProtocol string              `json:"usedProtocol"`
+	IsBase64     bool                `json:"isBase64,omitempty"`
+}
+
 type ResponseWrapper struct {
 	// wrapper for multirequest return type
-	IsHistory bool                        `json:"isHistory"`
-	Response  *tls_client_cffi.Response   `json:"response,omitempty"`
-	History   []*tls_client_cffi.Response `json:"history,omitempty"`
+	IsHistory bool        `json:"isHistory"`
+	Response  *Response   `json:"response,omitempty"`
+	History   []*Response `json:"history,omitempty"`
 }
 
 type IndexedResponseWrapper struct {
@@ -36,7 +53,8 @@ type IndexedResponseWrapper struct {
 
 type ExtendedRequestInput struct {
 	tls_client_cffi.RequestInput
-	WantHistory bool `json:"wantHistory"`
+	WantHistory    bool `json:"wantHistory"`
+	DetectEncoding bool `json:"detectEncoding"`
 }
 
 func extractBody(w http.ResponseWriter, r *http.Request) []byte {
@@ -150,6 +168,19 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
+//export GetOpenPort
+func GetOpenPort() int {
+	// exposed function to generate an open port
+	ln, err := net.Listen("tcp", ":0") // listen on a random port
+	if err != nil {
+		return 0
+	}
+	defer ln.Close()
+
+	addr := ln.Addr().(*net.TCPAddr) // type assert to *net.TCPAddr to get the Port
+	return addr.Port
+}
+
 func main() {
 	/*
 		Start the HTTP server
@@ -166,13 +197,15 @@ func main() {
 }
 
 func startServer(port string) {
+	srv = &http.Server{Addr: ":" + port}
+
 	http.HandleFunc("/request", requestHandler)
 	http.HandleFunc("/multirequest", multiRequestHandler)
 	http.HandleFunc("/ping", pingHandler)
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		fmt.Printf("Failed to start server: %v\n", err)
-		os.Exit(1)
+	// start server
+	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+		// log the error if it's not ErrServerClosed, which we expect when calling srv.Close()
+		fmt.Printf("HTTP server ListenAndServe: %v\n", err)
 	}
 }
 
@@ -180,6 +213,16 @@ func startServer(port string) {
 func StartServer(port string) {
 	// exposed function to start the server in a goroutine
 	go startServer(port)
+}
+
+//export StopServer
+func StopServer() {
+	// exposed function to stop the server
+	if srv != nil {
+		if err := srv.Close(); err != nil {
+			fmt.Printf("HTTP server Close: %v\n", err)
+		}
+	}
 }
 
 //export DestroyAll
@@ -219,16 +262,16 @@ func mergeRelative(srcURL string, redirURL string) (string, error) {
 	return parsedRed.String(), nil
 }
 
-func requestHistory(requestInput *ExtendedRequestInput) *[]*tls_client_cffi.Response {
+func requestHistory(requestInput *ExtendedRequestInput) *[]*Response {
 	// set follow redirects to false
 	requestInput.RequestInput.FollowRedirects = false
 	// create a list of requests
 	// then while the response is a redirect, add the next request to the list
 	// then return the list
-	var requests []*tls_client_cffi.Response
-	var responseJson *tls_client_cffi.Response
+	var requests []*Response
+	var responseJson *Response
 
-	for true {
+	for {
 		responseJson = request(requestInput)
 		// add a copy of responseJson to requests
 		requests = append(requests, responseJson)
@@ -256,7 +299,7 @@ func requestHistory(requestInput *ExtendedRequestInput) *[]*tls_client_cffi.Resp
 	return &requests
 }
 
-func request(requestInput *ExtendedRequestInput) *tls_client_cffi.Response {
+func request(requestInput *ExtendedRequestInput) *Response {
 	tlsClient, sessionId, withSession, err := tls_client_cffi.CreateClient(requestInput.RequestInput)
 	if err != nil {
 		return handleErrorResponse(sessionId, withSession, err)
@@ -291,7 +334,7 @@ func request(requestInput *ExtendedRequestInput) *tls_client_cffi.Response {
 
 	targetCookies := tlsClient.GetCookies(resp.Request.URL)
 
-	response, err := tls_client_cffi.BuildResponse(sessionId, withSession, resp, targetCookies, requestInput.RequestInput)
+	response, err := BuildResponse(sessionId, withSession, resp, targetCookies, requestInput.DetectEncoding)
 	if err != nil {
 		return handleErrorResponse(sessionId, withSession, err)
 	}
@@ -299,8 +342,74 @@ func request(requestInput *ExtendedRequestInput) *tls_client_cffi.Response {
 	return &response
 }
 
-func handleErrorResponse(sessionId string, withSession bool, err *tls_client_cffi.TLSClientError) *tls_client_cffi.Response {
-	response := tls_client_cffi.Response{
+func BuildResponse(
+	sessionId string,
+	withSession bool,
+	resp *http.Response,
+	cookies []*http.Cookie,
+	detect bool,
+) (Response, *tls_client_cffi.TLSClientError) {
+	defer resp.Body.Close()
+
+	ce := resp.Header.Get("Content-Encoding")
+
+	var respBodyBytes []byte
+	var err error
+
+	if !resp.Uncompressed {
+		resp.Body = http.DecompressBodyByType(resp.Body, ce)
+	}
+
+	respBodyBytes, err = io.ReadAll(resp.Body)
+
+	if err != nil {
+		clientErr := tls_client_cffi.NewTLSClientError(err)
+		return Response{}, clientErr
+	}
+
+	var finalResponse string
+
+	isBase64 := detect && utf8.Valid(respBodyBytes)
+	if isBase64 {
+		finalResponse = base64.StdEncoding.EncodeToString(respBodyBytes)
+	} else {
+		finalResponse = string(respBodyBytes)
+	}
+
+	response := Response{
+		Id:           uuid.New().String(),
+		Status:       resp.StatusCode,
+		UsedProtocol: resp.Proto,
+		Body:         finalResponse,
+		Headers:      resp.Header,
+		Target:       "",
+		Cookies:      cookiesToMap(cookies),
+		IsBase64:     isBase64,
+	}
+
+	if resp.Request != nil && resp.Request.URL != nil {
+		response.Target = resp.Request.URL.String()
+	}
+
+	if withSession {
+		response.SessionId = sessionId
+	}
+
+	return response, nil
+}
+
+func cookiesToMap(cookies []*http.Cookie) map[string]string {
+	ret := make(map[string]string, 0)
+
+	for _, c := range cookies {
+		ret[c.Name] = c.Value
+	}
+
+	return ret
+}
+
+func handleErrorResponse(sessionId string, withSession bool, err *tls_client_cffi.TLSClientError) *Response {
+	response := Response{
 		Id:      uuid.New().String(),
 		Status:  0,
 		Body:    err.Error(),
@@ -325,24 +434,6 @@ func buildCookies(cookies []tls_client_cffi.Cookie) []*http.Cookie {
 			Path:    cookie.Path,
 			Domain:  cookie.Domain,
 			Expires: cookie.Expires.Time,
-		})
-	}
-
-	return ret
-}
-
-func transformCookies(cookies []*http.Cookie) []tls_client_cffi.Cookie {
-	var ret []tls_client_cffi.Cookie
-
-	for _, cookie := range cookies {
-		ret = append(ret, tls_client_cffi.Cookie{
-			Name:   cookie.Name,
-			Value:  cookie.Value,
-			Path:   cookie.Path,
-			Domain: cookie.Domain,
-			Expires: tls_client_cffi.Timestamp{
-				Time: cookie.Expires,
-			},
 		})
 	}
 

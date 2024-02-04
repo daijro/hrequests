@@ -36,19 +36,19 @@ class TLSSession(TLSClient):
         debug (bool, optional): Debug mode. Defaults to False.
 
     Methods:
-        get(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        get(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a GET request
-        post(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        post(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a POST request
-        options(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        options(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a OPTIONS request
-        head(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        head(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a HEAD request
-        put(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        put(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a PUT request
-        patch(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        patch(url, *, params=None, data=None, files=None, headers=None, cookies=None, json=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a PATCH request
-        delete(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxies=None):
+        delete(url, *, params=None, headers=None, cookies=None, allow_redirects=True, verify=None, timeout=30, proxy=None):
             Send a DELETE request
         render(url, headless, proxy, response, mock_human):
             Render a page with playwright
@@ -144,7 +144,8 @@ class TLSSession(TLSClient):
         history: bool = False,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
-        proxies: Optional[dict] = None,
+        proxy: Optional[str] = None,
+        proxies: Optional[dict] = None,  # backwards compatibility
         process: bool = True,
     ) -> 'hrequests.response.Response':
         """
@@ -162,11 +163,14 @@ class TLSSession(TLSClient):
             history (bool, optional): Remember request history. Defaults to False.
             verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
             timeout (float, optional): Timeout in seconds. Defaults to 30.
-            proxies (dict, optional): Dictionary of proxies. Defaults to None.
+            proxy (str, optional): Proxy URL. Defaults to None.
 
         Returns:
             hrequests.response.Response: Response object
         """
+        # unpack proxy
+        if proxies and not proxy:
+            proxy = self.unpack_proxy(proxies)
         proc = ProcessResponse(
             session=self,
             method=method,
@@ -180,7 +184,7 @@ class TLSSession(TLSClient):
             history=history,
             verify=self.verify if verify is None else verify,
             timeout=self.timeout if timeout is None else timeout,
-            proxy=proxies,
+            proxy=proxy,
         )
         if not process:
             # return an unfinished ProcessResponse object
@@ -241,7 +245,6 @@ class SessionShortcut:
     versions: Tuple[int]
 
     @classmethod
-    @property
     def version(cls) -> int:
         return rchoice(cls.versions)
 
@@ -255,7 +258,7 @@ class SessionShortcut:
     ) -> Session:
         return Session(
             browser=cls.name,
-            version=version or cls.version,
+            version=version or cls.version(),
             os=os,
             *args,
             **kwargs,
@@ -274,7 +277,7 @@ class SessionShortcut:
 
 class firefox(SessionShortcut):
     name: str = 'firefox'
-    versions: Tuple[int] = (102, 104, 105, 106, 108, 110, 117)
+    versions: Tuple[int] = (102, 104, 105, 106, 108, 110, 117, 120)
 
 
 class chrome(SessionShortcut):

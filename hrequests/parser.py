@@ -154,6 +154,7 @@ class BaseParser:
         *,
         containing: _Containing = None,
         first: bool = False,
+        raise_exception: bool = True,
         **kwargs,
     ) -> _Find:
         """
@@ -165,6 +166,7 @@ class BaseParser:
             clean: Whether or not to sanitize the found HTML of ``<script>`` and ``<style>`` tags.
             containing: If specified, only return elements that contain the provided text.
             first: Whether or not to return just the first result.
+            raise_exception: Raise an exception if no elements are found. Default is True.
 
         Returns:
             A list of :class:`Element <Element>` objects or a single one.
@@ -198,8 +200,10 @@ class BaseParser:
         # find elements
         if first:
             found_css = (self.element.css_first(selector),)
-            # if no element was found, raise an exception
+            # if no element was found, raise an exception or return None
             if not found_css[0]:
+                if not raise_exception:
+                    return None
                 raise SelectorNotFoundException(
                     f"No elements were found with selector '{selector}'."
                 )
@@ -324,7 +328,7 @@ class BaseParser:
         The base URL for the page. Supports the ``<base>`` tag
         (`learn more <https://www.w3schools.com/tags/tag_base.asp>`_)."""
 
-        if base := self.find_all('base', first=True):
+        if base := self.find_all('base', first=True, raise_exception=False):
             if result := base.attrs.get('href', '').strip():
                 return result
 
@@ -365,7 +369,7 @@ class Element(BaseParser):
         url: str,
         br_session: Optional[weakref.CallableProxyType] = None,
     ) -> None:
-        super(Element, self).__init__(element=element, url=url, br_session=br_session)
+        super().__init__(element=element, url=url, br_session=br_session)
         self.element = element
         self.tag = element.tag
         self._attrs = None
@@ -420,15 +424,17 @@ class HTML(BaseParser):
     ) -> None:
         # Convert incoming unicode HTML into bytes.
         element = selectolax.lexbor.LexborHTMLParser(html)
-        super(HTML, self).__init__(
+        super().__init__(
             element=element,
             url=url,
-            br_session=weakref.proxy(session)
-            if hasattr(hrequests, 'browser')  # if the browser module is imported
-            and isinstance(
-                session, hrequests.browser.BrowserSession
-            )  # and session is a BrowserSession
-            else None,
+            br_session=(
+                weakref.proxy(session)
+                if hasattr(hrequests, 'browser')  # if the browser module is imported
+                and isinstance(
+                    session, hrequests.browser.BrowserSession
+                )  # and session is a BrowserSession
+                else None
+            ),
         )
         self.session = session or hrequests.firefox.Session(temp=True)
         self.page = None

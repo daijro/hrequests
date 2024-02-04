@@ -64,7 +64,9 @@ class ChromeBrowser(PlaywrightMockBase):
             paths = [ext.path for ext in self.extensions]
             args.extend(f'--load-extension={ext}' for ext in paths)
             args.append(f'--disable-extensions-except={",".join(paths)}')
-        return await self.playwright.chromium.launch(headless=headless, args=args)
+        return await self.playwright.chromium.launch(
+            headless=headless, args=args, proxy={'server': 'per-context'}
+        )
 
 
 class FirefoxBrowser(PlaywrightMockBase):

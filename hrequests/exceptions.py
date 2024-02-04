@@ -24,3 +24,7 @@ class JavascriptException(BrowserException):
 
 class SelectorNotFoundException(Exception):
     '''Exception raised when a css selector is not found'''
+
+
+class ProxyFormatException(ClientException):
+    '''Exception raised when a proxy format is not supported'''
