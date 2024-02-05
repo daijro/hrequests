@@ -1,4 +1,5 @@
 import ctypes
+import glob
 import os
 from platform import machine
 from sys import platform
@@ -7,7 +8,6 @@ from typing import Tuple
 import rich.progress
 from httpx import get, stream
 from orjson import loads
-
 
 root_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -36,6 +36,7 @@ class LibraryManager:
     def __init__(self):
         self.parent_path = os.path.join(root_dir, 'bin')
         self.file_cont, self.file_ext = self.get_name()
+        self.file_pref = f'hrequests-cgo-{self.BRIDGE_VERSION}'
         filename = self.check_library()
         self.full_path = os.path.join(self.parent_path, filename)
 
@@ -52,25 +53,38 @@ class LibraryManager:
         return f'linux-{arch}', '.so'
 
     def check_library(self):
-        for file in os.listdir(self.parent_path):
+        files = sorted(glob.glob('hrequests-cgo-*', root_dir=self.parent_path), reverse=True)
+        for file in files:
             if not file.endswith(self.file_ext):
                 continue
-            if file.startswith(f'hrequests-cgo-{self.BRIDGE_VERSION}'):
+            if file.startswith(self.file_pref):
                 return file
             # delete residual files from previous versions
             os.remove(os.path.join(self.parent_path, file))
         self.download_library()
         return self.check_library()
 
+    def check_assets(self, assets):
+        for asset in assets:
+            if (
+                # filter via version
+                asset['name'].startswith(self.file_pref)
+                # filter via os
+                and self.file_cont in asset['name']
+                # filter via file extension
+                and asset['name'].endswith(self.file_ext)
+            ):
+                return asset['browser_download_url'], asset['name']
+
     def download_library(self):
         print('Downloading hrequests-cgo library from daijro/hrequests...')
         # pull release assets from github daijro/hrequests
-        resp = get('https://api.github.com/repos/daijro/hrequests/releases/latest')
-        assets = loads(resp.content)['assets']
-        for asset in assets:
-            if self.file_cont in asset['name'] and asset['name'].endswith(self.file_ext):
-                url: str = asset['browser_download_url']
-                name: str = asset['name']
+        resp = get('https://api.github.com/repos/daijro/hrequests/releases')
+        releases = loads(resp.content)
+        for release in releases:
+            asset = self.check_assets(release['assets'])
+            if asset:
+                url, name = asset
                 break
         else:
             raise IOError('Could not find a matching binary for your system.')
