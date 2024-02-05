@@ -125,8 +125,7 @@ library.DestroySession.restype = ctypes.c_void_p
 
 
 def destroy_session(session_id: str):
-    encoded_session_id = session_id.encode('utf-8')
-    library.DestroySession(GoString(encoded_session_id, len(encoded_session_id)))
+    library.DestroySession(gostring(session_id))
 
 
 # extract the exposed GetOpenPort function
@@ -147,9 +146,13 @@ library.StartServer.argtypes = [GoString]
 library.StopServer.restype = ctypes.c_void_p
 
 
+def gostring(s: str) -> GoString:
+    port_buf = ctypes.create_string_buffer(s.encode('utf-8'))
+    return GoString(ctypes.cast(port_buf, ctypes.c_char_p), len(s))
+
+
 def start_server():
-    encoded_port = str(PORT).encode('utf-8')
-    library.StartServer(GoString(encoded_port, len(encoded_port)))
+    library.StartServer(gostring(str(PORT)))
 
 
 def stop_server():
