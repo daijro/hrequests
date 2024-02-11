@@ -130,7 +130,7 @@ class BrowserSession:
     async def main(self) -> None:
         # build the playwright instance
         self.client = await _browsers[self.browser](
-            headless=self.headless, extensions=self.extensions
+            headless=self.headless, extensions=self.extensions, has_proxy=bool(self.proxy)
         )
         self.context = await self.client.new_context(
             browser_name=self.browser,
@@ -617,9 +617,9 @@ class BrowserSession:
 
 
 def render(
-    url: str = None,
+    url: Optional[str] = None,
     headless: bool = True,
-    proxy: str = None,
+    proxy: Optional[str] = None,
     response: hrequests.response.Response = None,
     session: hrequests.session.TLSSession = None,
     mock_human: bool = False,

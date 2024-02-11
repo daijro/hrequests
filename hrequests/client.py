@@ -421,7 +421,7 @@ class TLSClient:
             response_headers=response_object['headers'],
         )
         # build response class
-        return hrequests.response.build_response(response_object, response_cookie_jar)
+        return hrequests.response.build_response(response_object, response_cookie_jar, self.proxy)
 
     def build_response(
         self,

@@ -155,6 +155,7 @@ class Response:
     elapsed: Optional[timedelta] = None
     encoding: str = 'UTF-8'
     is_utf8: bool = True
+    proxy: Optional[str] = None
 
     def __post_init__(self) -> None:
         if type(self.raw) is bytes:
@@ -230,7 +231,7 @@ class Response:
         return hrequests.browser.render(
             response=self,
             session=self.session,
-            proxy=self.session.proxy if self.session else None,
+            proxy=self.proxy,
             headless=headless,
             mock_human=mock_human,
             extensions=extensions,
@@ -273,7 +274,9 @@ def parse_header_links(value):
     return links
 
 
-def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Response:
+def build_response(
+    res: Union[dict, list], res_cookies: RequestsCookieJar, proxy: Optional[str]
+) -> Response:
     '''Builds a Response object'''
     # build headers
     if res["headers"] is None:
@@ -299,4 +302,6 @@ def build_response(res: Union[dict, list], res_cookies: RequestsCookieJar) -> Re
         raw=res["body"],
         # if response was utf-8 validated
         is_utf8=not res.get('isBase64'),
+        # add proxy
+        proxy=proxy,
     )

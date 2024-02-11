@@ -15,10 +15,12 @@ class PlaywrightMockBase(AsyncObject):
         headless: bool = False,
         scroll_into_view: bool = True,
         extensions=None,
+        has_proxy: bool = False,
     ):
         # setting values
         self.scroll_into_view = scroll_into_view
         self.extensions = extensions
+        self.has_proxy = has_proxy
         # starting Playwright
         self.playwright = await async_playwright().start()
         # launching chromium
@@ -65,7 +67,9 @@ class ChromeBrowser(PlaywrightMockBase):
             args.extend(f'--load-extension={ext}' for ext in paths)
             args.append(f'--disable-extensions-except={",".join(paths)}')
         return await self.playwright.chromium.launch(
-            headless=headless, args=args, proxy={'server': 'per-context'}
+            headless=headless,
+            args=args,
+            proxy={'server': 'per-context'} if self.has_proxy else None,
         )
 
 
