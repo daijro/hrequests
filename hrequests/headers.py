@@ -4,7 +4,7 @@ from os.path import dirname, exists, join
 from random import choice as rchoice
 from random import randint as rint
 from random import randrange as rrange
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 import httpx
 import orjson
@@ -73,7 +73,7 @@ class ChromeVersions(VersionScraper):
 
     @staticmethod
     def get_ver(line: str) -> str:
-        return re.sub('[^\d\.]', '', line)
+        return re.sub(r'[^\d\.]', '', line)
 
     def download(self) -> List[str]:
         print('Downloading Chrome version history...')
@@ -82,7 +82,7 @@ class ChromeVersions(VersionScraper):
             lines = r.iter_lines()
             # search for first version number
             for line in lines:
-                highest_ver = re.search('\d+', line)
+                highest_ver = re.search(r'\d+', line)
                 if highest_ver:  # on the first number
                     # get leading ver number
                     highest_ver = int(highest_ver[0])
@@ -149,9 +149,11 @@ class Headers:
 
     _os: dict = {'win': OSHeaders.windows, 'mac': OSHeaders.macos, 'lin': OSHeaders.linux}
 
-    def __init__(self, browser: str = None, os: str = None, headers: bool = True) -> None:
-        self._platform: str = self._os.get(os, OSHeaders.random_os)
-        self._browser: str = browsers.get(browser, (chrome, firefox)[rrange(2)])
+    def __init__(
+        self, browser: Optional[str] = None, os: Optional[str] = None, headers: bool = True
+    ) -> None:
+        self._platform: Callable = self._os.get(os, OSHeaders.random_os)
+        self._browser: Callable = browsers.get(browser, (chrome, firefox)[rrange(2)])
         self._headers: bool = headers
 
     @staticmethod

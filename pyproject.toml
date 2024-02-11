@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "hrequests"
-version = "0.8.0-beta.4"
+version = "0.8.0"
 description = "Hrequests (human requests) is a simple, configurable, feature-rich, replacement for the Python requests library."
 authors = ["daijro <daijro.dev@gmail.com>"]
 license = "Apache-2.0"
@@ -44,7 +44,7 @@ parse = "*"
 selectolax = "*"
 gevent = "*"
 faust-cchardet = "*"
-msvc-runtime = { version = "*", markers = "sys_platform == 'win32'" }
+msvc-runtime = { version = "*", markers = "sys_platform == 'win32' and python_version < '3.12'" }
 
 [tool.poetry.extras]
 all = ["playwright", "playwright-stealth", "pycryptodome"]

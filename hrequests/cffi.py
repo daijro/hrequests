@@ -32,7 +32,7 @@ arch_map = {
 
 
 class LibraryManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self.parent_path: Path = root_dir / 'bin'
         self.file_cont, self.file_ext = self.get_name()
         self.file_pref = f'hrequests-cgo-{BRIDGE_VERSION}'
@@ -55,7 +55,7 @@ class LibraryManager:
         files: list = [file.name for file in self.parent_path.glob('hrequests-cgo-*')]
         return sorted(files, reverse=True)
 
-    def check_library(self):
+    def check_library(self) -> str:
         files: list = self.get_files()
         for file in files:
             if not file.endswith(self.file_ext):
@@ -67,7 +67,7 @@ class LibraryManager:
         self.download_library()
         return self.check_library()
 
-    def check_assets(self, assets):
+    def check_assets(self, assets) -> Optional[Tuple[str, str]]:
         for asset in assets:
             if (
                 # filter via version

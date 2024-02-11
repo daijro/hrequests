@@ -75,13 +75,13 @@ class ProxyManager(AsyncObject):
         await self._phttpx.aclose()
 
     proxy_reg: re.Pattern = re.compile(
-        '^(?P<schema>\w+)://'
-        '(?:'
-        '(?P<user>[^\:]+):'
-        '(?P<password>[^@]+)@)?'
-        '(?P<ip>.*?)'
-        '(?:\:'
-        '(?P<port>\d+))?$'
+        r'^(?P<schema>\w+)://'
+        r'(?:'
+        r'(?P<user>[^\:]+):'
+        r'(?P<password>[^@]+)@)?'
+        r'(?P<ip>.*?)'
+        r'(?:\:'
+        r'(?P<port>\d+))?$'
     )
 
     def split_proxy(self) -> None:

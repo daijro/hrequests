@@ -37,12 +37,14 @@ from .headers import Headers
 try:
     from .playwright_mock import ChromeBrowser, FirefoxBrowser
     from .browser import BrowserSession, render
+
+    os.environ['HREQUESTS_PW'] = '1'
 except ModuleNotFoundError:
     from rich import print as rprint
 
     if not os.getenv('HREQUESTS_MODULE'):
         rprint(
-            '[bright_yellow]WARNING: Please run [white]pip install hrequests\[all][/] for headless browsing support.'
+            r'[bright_yellow]WARNING: Please run [white]pip install hrequests\[all][/] for automated browsing support.'
         )
 
 from .parser import HTML

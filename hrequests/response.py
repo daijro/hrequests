@@ -1,4 +1,6 @@
+import os
 import re
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
@@ -220,6 +222,11 @@ class Response:
         mock_human: bool = False,
         extensions: Optional[Union[str, Iterable[str]]] = None,
     ) -> 'hrequests.browser.BrowserSession':
+        if not os.getenv('HREQUESTS_PW'):
+            raise ImportError(
+                'Browsers are not installed. Please run `python -m hrequests install`'
+            )
+        # return a BrowserSession object
         return hrequests.browser.render(
             response=self,
             session=self.session,

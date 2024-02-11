@@ -65,13 +65,7 @@ Install via pip:
 
 ```bash
 pip install -U hrequests[all]
-python -m playwright install firefox chromium
-```
-
-Other dependencies will be downloaded on the first import:
-
-```py
->>> import hrequests
+python -m hrequests install
 ```
 
 <details>
