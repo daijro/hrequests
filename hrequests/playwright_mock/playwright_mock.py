@@ -6,7 +6,7 @@ from playwright.async_api import async_playwright
 
 from hrequests.extensions import LoadFirefoxAddon
 from hrequests.playwright_mock import Faker, ProxyManager, context
-from hrequests.cffi import GetOpenPort
+from hrequests.cffi import library
 
 
 class PlaywrightMockBase(AsyncObject):
@@ -90,7 +90,7 @@ class FirefoxBrowser(PlaywrightMockBase):
         # block mv3
         for ext in self.extensions:
             assert not ext.is_mv3, f'MKV extensions are not supported: {ext.path}'
-        rdp_port: int = GetOpenPort()
+        rdp_port: int = library.get_open_port()
         pr = await run_cmd(
             args=('-start-debugger-server', str(rdp_port)),
         )

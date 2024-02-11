@@ -4,14 +4,15 @@ from datetime import datetime, timedelta
 from http.client import responses as status_codes
 from typing import Callable, Iterable, List, Literal, Optional, Union
 
-import hrequests
-from hrequests.cffi import PORT
-from hrequests.exceptions import ClientException
+import cchardet as chardet
 from orjson import dumps, loads
+
+import hrequests
+from hrequests.cffi import library
+from hrequests.exceptions import ClientException
 
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict, FileUtils
-import cchardet as chardet
 
 try:
     import turbob64 as base64
@@ -72,7 +73,7 @@ class ProcessResponse:
         except IOError as e:
             raise ClientException('Connection error') from e
         resp.session = None if self.session.temp else self.session
-        resp.browser: str = self.session.browser
+        resp.browser = self.session.browser
         return resp
 
 
@@ -102,7 +103,7 @@ class ProcessResponsePool:
         try:
             # send request
             resp = proc.session.server.post(
-                f'http://127.0.0.1:{PORT}/multirequest', body=dumps(values)
+                f'http://127.0.0.1:{library.PORT}/multirequest', body=dumps(values)
             )
             response_object = loads(resp.read())
         except Exception as e:
@@ -145,9 +146,9 @@ class Response:
 
     # set by ProcessResponse
     history: Optional[List['Response']] = None
-    session: Optional[Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']] = (
-        None
-    )
+    session: Optional[
+        Union['hrequests.session.TLSSession', 'hrequests.browser.BrowserSession']
+    ] = None
     browser: Optional[Literal['firefox', 'chrome']] = None
     elapsed: Optional[timedelta] = None
     encoding: str = 'UTF-8'

@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlencode
 
-import hrequests
 from geventhttpclient import HTTPClient
-from hrequests.cffi import PORT, destroy_session
 from orjson import dumps, loads
+
+import hrequests
+from hrequests.cffi import library
 
 from .cookies import (
     RequestsCookieJar,
@@ -259,7 +260,12 @@ class TLSClient:
 
         # http client for local go server
         self.server: HTTPClient = HTTPClient(
-            '127.0.0.1', PORT, ssl=False, insecure=True, connection_timeout=1e9, network_timeout=1e9
+            '127.0.0.1',
+            library.PORT,
+            ssl=False,
+            insecure=True,
+            connection_timeout=1e9,
+            network_timeout=1e9,
         )
         # CookieJar containing all currently outstanding cookies set on this session
         self.cookies: RequestsCookieJar = self.cookies or RequestsCookieJar()
@@ -268,7 +274,7 @@ class TLSClient:
     def close(self):
         if not self._closed:
             self._closed = True
-            destroy_session(self._session_id)
+            library.destroy_session(self._session_id)
             self.server.close()
 
     def __enter__(self):
@@ -455,7 +461,9 @@ class TLSClient:
         request_payload, headers = self.build_request(method, url, headers, *args, **kwargs)
         try:
             # send request
-            resp = self.server.post(f'http://127.0.0.1:{PORT}/request', body=dumps(request_payload))
+            resp = self.server.post(
+                f'http://127.0.0.1:{library.PORT}/request', body=dumps(request_payload)
+            )
             response_object = loads(resp.read())
         except Exception as e:
             raise ClientException('Request failed') from e

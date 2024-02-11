@@ -205,11 +205,13 @@ def request_list(
 @overload
 def request(
     method: str, url: Iterable[str], *args, **kwargs
-) -> Iterable[Union[Response, LazyTLSRequest]]: ...
+) -> Iterable[Union[Response, LazyTLSRequest]]:
+    ...
 
 
 @overload
-def request(method: str, url: str, *args, **kwargs) -> Union[Response, LazyTLSRequest]: ...
+def request(method: str, url: str, *args, **kwargs) -> Union[Response, LazyTLSRequest]:
+    ...
 
 
 def request(method: str, url: Union[str, Iterable[str]], *args, **kwargs):

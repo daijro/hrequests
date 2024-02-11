@@ -1,9 +1,10 @@
+import os
 import re
 from os.path import dirname, exists, join
 from random import choice as rchoice
 from random import randint as rint
 from random import randrange as rrange
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import httpx
 import orjson
@@ -52,8 +53,8 @@ class VersionScraper:
     def leading_num(line: str) -> int:
         return int(line.split('.', 1)[0])
 
-    def __init__(self) -> None:
-        if not exists(self.file_name):
+    def __init__(self, force_dl: bool = False) -> None:
+        if force_dl or not exists(self.file_name):
             self.data = self.download()
         self.data = self.load()
 
@@ -130,8 +131,13 @@ class FirefoxVersions(VersionScraper):
         return f'Mozilla/5.0 (%PLAT%; rv:{ver}) Gecko/20100101 Firefox/{ver}'
 
 
-chrome = ChromeVersions().generate
-firefox = FirefoxVersions().generate
+if not os.getenv('HREQUESTS_MODULE'):
+    '''
+    Define global `chrome` and `firefox` header generators
+    '''
+    chrome: Callable = ChromeVersions().generate
+    firefox: Callable = FirefoxVersions().generate
+    browsers: dict = {'chrome': chrome, 'firefox': firefox}
 
 
 class Headers:
@@ -143,11 +149,9 @@ class Headers:
 
     _os: dict = {'win': OSHeaders.windows, 'mac': OSHeaders.macos, 'lin': OSHeaders.linux}
 
-    _browser: dict = {'chrome': chrome, 'firefox': firefox}
-
     def __init__(self, browser: str = None, os: str = None, headers: bool = True) -> None:
         self._platform: str = self._os.get(os, OSHeaders.random_os)
-        self._browser: str = self._browser.get(browser, (chrome, firefox)[rrange(2)])
+        self._browser: str = browsers.get(browser, (chrome, firefox)[rrange(2)])
         self._headers: bool = headers
 
     @staticmethod

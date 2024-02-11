@@ -39,7 +39,7 @@ class BrowserSession:
     Attributes:
         url (str): Get the page url
         headers (dict): Get the browser headers (User-Agent)
-        content (dict): Get the current page content
+        content (str): Get the current page content
         cookies (RequestsCookieJar): Get the browser cookies
         status_code (int): Status code of the last response
         reason (Optional[str]): Gets the official W3C name for the status code

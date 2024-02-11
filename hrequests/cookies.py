@@ -1,15 +1,11 @@
 import copy
+import threading
 from http.client import HTTPMessage
 from http.cookiejar import Cookie, CookieJar
 from typing import Any, MutableMapping, Union
 from urllib.parse import urlparse, urlunparse
 
 import hrequests
-
-try:
-    import threading
-except ImportError:
-    import dummy_threading as threading
 
 
 class MockRequest:

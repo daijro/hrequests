@@ -1,15 +1,17 @@
 import ctypes
-import glob
 import os
+from pathlib import Path
 from platform import machine
 from sys import platform
-from typing import Tuple
+from typing import Optional, Tuple
 
 import rich.progress
 from httpx import get, stream
 from orjson import loads
 
-root_dir = os.path.abspath(os.path.dirname(__file__))
+from hrequests.__version__ import BRIDGE_VERSION
+
+root_dir: Path = Path(os.path.abspath(os.path.dirname(__file__)))
 
 # map machine architecture to hrequests-cgo binary name
 arch_map = {
@@ -30,15 +32,12 @@ arch_map = {
 
 
 class LibraryManager:
-    # specify specific version of hrequests-cgo library
-    BRIDGE_VERSION = '2.'
-
     def __init__(self):
-        self.parent_path = os.path.join(root_dir, 'bin')
+        self.parent_path: Path = root_dir / 'bin'
         self.file_cont, self.file_ext = self.get_name()
-        self.file_pref = f'hrequests-cgo-{self.BRIDGE_VERSION}'
+        self.file_pref = f'hrequests-cgo-{BRIDGE_VERSION}'
         filename = self.check_library()
-        self.full_path = os.path.join(self.parent_path, filename)
+        self.full_path: str = str(self.parent_path / filename)
 
     @staticmethod
     def get_name() -> Tuple[str, str]:
@@ -52,15 +51,19 @@ class LibraryManager:
             return f'windows-4.0-{arch}', '.dll'
         return f'linux-{arch}', '.so'
 
+    def get_files(self) -> list:
+        files: list = [file.name for file in self.parent_path.glob('hrequests-cgo-*')]
+        return sorted(files, reverse=True)
+
     def check_library(self):
-        files = sorted(glob.glob('hrequests-cgo-*', root_dir=self.parent_path), reverse=True)
+        files: list = self.get_files()
         for file in files:
             if not file.endswith(self.file_ext):
                 continue
             if file.startswith(self.file_pref):
                 return file
             # delete residual files from previous versions
-            os.remove(os.path.join(self.parent_path, file))
+            os.remove(self.parent_path / file)
         self.download_library()
         return self.check_library()
 
@@ -76,11 +79,16 @@ class LibraryManager:
             ):
                 return asset['browser_download_url'], asset['name']
 
-    def download_library(self):
-        print('Downloading hrequests-cgo library from daijro/hrequests...')
+    def get_releases(self) -> dict:
         # pull release assets from github daijro/hrequests
         resp = get('https://api.github.com/repos/daijro/hrequests/releases')
-        releases = loads(resp.content)
+        if resp.status_code != 200:
+            raise ConnectionError(f'Could not connect to GitHub: {resp.text}')
+        return loads(resp.content)
+
+    def download_library(self):
+        print('Downloading hrequests-cgo library from daijro/hrequests...')
+        releases = self.get_releases()
         for release in releases:
             asset = self.check_assets(release['assets'])
             if asset:
@@ -88,11 +96,22 @@ class LibraryManager:
                 break
         else:
             raise IOError('Could not find a matching binary for your system.')
-        with open(os.path.join(self.parent_path, name), 'wb') as fstream:
-            self.download_file(fstream, url)
+        # download file
+        file = self.parent_path / name
+        self.download_file(file, url)
+
+    def download_file(self, file, url):
+        # handle download_exec
+        try:
+            with open(file, 'wb') as fstream:
+                self.download_exec(fstream, url)
+        except KeyboardInterrupt as e:
+            print('Cancelled.')
+            os.remove(file)
+            raise e
 
     @staticmethod
-    def download_file(fstream, url):
+    def download_exec(fstream, url):
         # file downloader with progress bar
         total: int
         with stream('GET', url, follow_redirects=True) as resp:
@@ -108,55 +127,74 @@ class LibraryManager:
                     fstream.write(chunk)
                     progress.update(download_task, completed=resp.num_bytes_downloaded)
 
+    @staticmethod
+    def load_library() -> ctypes.CDLL:
+        libman: LibraryManager = LibraryManager()
+        return ctypes.cdll.LoadLibrary(libman.full_path)
+
 
 class GoString(ctypes.Structure):
     # wrapper around Go's string type
     _fields_ = [("p", ctypes.c_char_p), ("n", ctypes.c_longlong)]
 
 
-# load the shared package
-libman = LibraryManager()
-library = ctypes.cdll.LoadLibrary(libman.full_path)
-del libman
-
-# extract the exposed DestroySession function
-library.DestroySession.argtypes = [GoString]
-library.DestroySession.restype = ctypes.c_void_p
-
-
-def destroy_session(session_id: str):
-    library.DestroySession(gostring(session_id))
-
-
-# extract the exposed GetOpenPort function
-library.GetOpenPort.restype = ctypes.c_int
-
-
-def GetOpenPort():
-    return library.GetOpenPort()
-
-
-# spawn the server
-PORT = GetOpenPort()
-if not PORT:
-    raise OSError('Could not find an open port.')
-
-# extract the exposed StartServer and StopServer functions
-library.StartServer.argtypes = [GoString]
-library.StopServer.restype = ctypes.c_void_p
-
-
 def gostring(s: str) -> GoString:
+    # create a string buffer and keep a reference to it
     port_buf = ctypes.create_string_buffer(s.encode('utf-8'))
-    return GoString(ctypes.cast(port_buf, ctypes.c_char_p), len(s))
+    # pass the buffer to GoString
+    go_str = GoString(ctypes.cast(port_buf, ctypes.c_char_p), len(s))
+    # attach the buffer to the GoString instance to keep it alive
+    go_str._keep_alive = port_buf
+    return go_str
 
 
-def start_server():
-    library.StartServer(gostring(str(PORT)))
+class Library:
+    def __init__(self) -> None:
+        # load the shared package
+        self.library: ctypes.CDLL = LibraryManager.load_library()
+
+        # extract the exposed DestroySession function
+        self.library.DestroySession.argtypes = [GoString]
+
+        # extract the exposed GetOpenPort function
+        self.library.GetOpenPort.argtypes = []
+        self.library.GetOpenPort.restype = ctypes.c_int
+
+    def launch(self) -> None:
+        # spawn the server
+        self.PORT = self.get_open_port()
+        if not self.PORT:
+            raise OSError('Could not find an open port.')
+
+        # extract the exposed StartServer and StopServer functions
+        self.library.StartServer.argtypes = [GoString]
+        self.library.StopServer.argtypes = []
+
+        self.start_server()
+
+    def destroy_session(self, session_id: str):
+        # destroy a session by its passed session_id
+        ref: GoString = gostring(session_id)
+        self.library.DestroySession(ref)
+
+    def get_open_port(self) -> int:
+        # generate a new open port
+        return self.library.GetOpenPort()
+
+    def start_server(self):
+        # launch the server
+        ref: GoString = gostring(str(self.PORT))
+        self.library.StartServer(ref)
+
+    def stop_server(self):
+        # destroy the server
+        self.library.StopServer()
 
 
-def stop_server():
-    library.StopServer()
+library: Optional[Library]
 
-
-start_server()
+if os.getenv('HREQUESTS_MODULE'):
+    library = None
+else:
+    library = Library()
+    library.launch()
