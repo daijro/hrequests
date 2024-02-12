@@ -50,6 +50,8 @@ class ChromeBrowser(PlaywrightMockBase):
         '--disable-web-security',
         '--disable-site-isolation-trials',
         '--disable-features=CrossSiteDocumentBlockingIfIsolating,'
+        "--disable-gpu",
+        "--single-process",
         'CrossSiteDocumentBlockingAlways,'
         'IsolateOrigins,'
         'site-per-process,'
