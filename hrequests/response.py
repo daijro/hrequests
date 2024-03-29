@@ -112,7 +112,7 @@ class ProcessResponsePool:
             raise ClientException('Connection error') from e
         # process responses
         return [
-            proc.session.build_response(proc.url, proc.full_headers, data)
+            proc.session.build_response(proc.url, proc.full_headers, data, payload['proxyUrl'])
             for proc, data in zip(self.pool, response_object)
         ]
 
