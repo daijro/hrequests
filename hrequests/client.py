@@ -379,7 +379,7 @@ class TLSClient:
             ),
             'requestCookies': cookiejar_to_list(self.cookies),
             'timeoutMilliseconds': int(timeout * 1000),
-            'withoutCookieJar': True,
+            'withoutCookieJar': False,
             'disableIPv6': self.disable_ipv6,
         }
         if self.certificate_pinning:
