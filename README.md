@@ -47,6 +47,7 @@
 - Proxy support
 - Headless and headful support
 - No CORS restrictions
+- Anti-detect browsing based on [Vinyzu's](https://github.com/Vinyzu) [Botright](https://github.com/Vinyzu/botright/)
 
 ### ⚡ More
 
@@ -535,7 +536,7 @@ HTML scraping is based off [selectolax](https://github.com/rushter/selectolax), 
 | -------------- | ----------------- |
 | BeautifulSoup4 | 52.6              |
 | PyQuery        | 7.5               |
-| selectolax     | **1.9**               |
+| selectolax     | **1.9**           |
 
 The HTML parser can be accessed through the `html` attribute of the response object:
 
@@ -1238,3 +1239,20 @@ Make sure to close all `BrowserSession` objects when done!
 ```
 
 ---
+
+## Thanks
+
+This project includes code adapted from the following sources:
+
+- **Botright**
+
+  - Author: Vinyzu
+  - Repository: https://github.com/Vinyzu/Botright
+  - License: GNU General Public License v3.0
+  - Used for [`playwright_mock`](https://github.com/daijro/hrequests/tree/main/hrequests/playwright_mock) submodule
+
+- **tls-client**
+  - Author: bogdanfinn
+  - Repository: https://github.com/bogdanfinn/tls-client
+  - License: BSD-4-Clause license
+  - Used in [bridge/server.go](https://github.com/daijro/hrequests/blob/main/bridge/server.go)

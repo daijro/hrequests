@@ -96,6 +96,10 @@ class ProxyManager(AsyncObject):
         """
         Check the validity of the proxy by making HTTP requests to determine its properties.
 
+        Original author: Vinyzu
+        Source: https://github.com/Vinyzu/Botright/blame/main/botright/modules/proxy_manager.py#L106
+        License: GNU General Public License v3.0
+
         Args:
             httpx_client (httpx.AsyncClient): The HTTPX client to use for proxy checks.
         """
