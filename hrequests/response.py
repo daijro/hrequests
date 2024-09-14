@@ -229,6 +229,7 @@ class Response:
             )
         # return a BrowserSession object
         return hrequests.browser.render(
+            url=self.url,
             response=self,
             session=self.session,
             proxy=self.proxy,
