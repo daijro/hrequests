@@ -1,10 +1,10 @@
+import base64
 import os
 import re
-import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from http.client import responses as status_codes
-from typing import Callable, Iterable, List, Literal, Optional, Union
+from typing import Callable, List, Literal, Optional, Union
 
 import cchardet as chardet
 from orjson import dumps, loads
@@ -12,14 +12,10 @@ from orjson import dumps, loads
 import hrequests
 from hrequests.cffi import library
 from hrequests.exceptions import ClientException
+from hrequests.proxies import BaseProxy
 
 from .cookies import RequestsCookieJar
 from .toolbelt import CaseInsensitiveDict, FileUtils
-
-try:
-    import turbob64 as base64
-except ImportError:
-    import base64
 
 
 class ProcessResponse:
@@ -222,6 +218,7 @@ class Response:
 
     def render(
         self,
+        proxy: Optional[Union[str, BaseProxy]] = None,
         **kwargs,
     ) -> 'hrequests.browser.BrowserSession':
         if not os.getenv('HREQUESTS_PW'):
@@ -236,7 +233,7 @@ class Response:
             url=self.url,  # Enable CORS requests during render: #56
             response=self,
             session=self.session,
-            proxy=self.proxy,
+            proxy=proxy or self.proxy,
             ff_version=self.version,
             **kwargs,
         )

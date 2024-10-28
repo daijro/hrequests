@@ -46,9 +46,9 @@ class EvomiProxy(BaseProxy):
             "asn": asn,
             "continent": continent,
             "pool": pool,
-            "session_type": None if auto_rotate else self._random_id(),
             "lifetime": lifetime,
             "adblock": 1 if adblock else None,
+            session_type: None if auto_rotate else self._random_id(),
         }
 
         self.kwargs = {

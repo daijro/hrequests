@@ -27,7 +27,7 @@ class Proxy:
         if not match:
             raise ProxyFormatException(f"Invalid proxy: {host}")
         return Proxy(
-            server=f"{match['ip']}:{match['port']}",
+            server=f"{match['schema']}://{match['ip']}:{match['port']}",
             username=match['user'],
             password=match['password'],
         )

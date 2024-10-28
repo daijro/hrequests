@@ -10,6 +10,7 @@ from hrequests.browser.proxy import Proxy
 from hrequests.client import CaseInsensitiveDict
 from hrequests.cookies import RequestsCookieJar, cookiejar_to_list, list_to_cookiejar
 from hrequests.exceptions import JavascriptException
+from hrequests.proxies import BaseProxy
 from hrequests.response import Response
 
 from .engine import BrowserEngine, BrowserObjectWrapper
@@ -67,9 +68,10 @@ class BrowserSession:
         *,
         session: Optional[hrequests.session.TLSSession] = None,
         resp: Optional[hrequests.response.Response] = None,
-        proxy: Optional[str] = None,
+        proxy: Optional[Union[str, BaseProxy]] = None,
         mock_human: bool = False,
         engine: Optional['BrowserEngine'] = None,
+        verify: bool = True,
         **launch_options,
     ) -> None:
         # Remember session and resp to clone cookies back to when closing
@@ -84,7 +86,11 @@ class BrowserSession:
             self.engine = BrowserEngine()
             self.temp_engine = True
 
+        if isinstance(proxy, BaseProxy):
+            proxy = str(proxy)
+
         self.proxy: Optional[Proxy] = Proxy.from_url(proxy) if proxy else None
+        self.verify: bool = verify
 
         # Browser config
         self.status_code: Optional[int]
@@ -114,6 +120,7 @@ class BrowserSession:
         self.client = await hrequests.BrowserClient(
             engine=self.engine,
             proxy=self.proxy.to_playwright() if self.proxy else None,
+            verify=self.verify,
             **self.launch_options,
         )
         # Create a new page
@@ -582,7 +589,7 @@ class BrowserSession:
 def render(
     url: Optional[str] = None,
     headless: bool = True,
-    proxy: Optional[str] = None,
+    proxy: Optional[Union[str, BaseProxy]] = None,
     response: Optional[hrequests.response.Response] = None,
     session: Optional[hrequests.session.TLSSession] = None,
     **kwargs,

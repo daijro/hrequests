@@ -2,7 +2,7 @@ import asyncio
 import functools
 from concurrent.futures import Future
 from threading import Event, Lock, Thread
-from typing import Callable, Optional, ParamSpec, Set, TypeVar
+from typing import Callable, Dict, Optional, ParamSpec, Set, TypeVar
 
 from async_class import AsyncObject
 from camoufox.async_api import AsyncNewBrowser
@@ -19,12 +19,21 @@ class BrowserClient(AsyncObject):
     This was originally going to in hrequests, but I decided to move it into Camoufox.
     """
 
-    async def __ainit__(self, engine: 'BrowserEngine', *args, **kwargs):
+    async def __ainit__(
+        self,
+        engine: 'BrowserEngine',
+        proxy: Optional[Dict[str, str]] = None,
+        verify: bool = True,
+        *args,
+        **kwargs,
+    ):
         """
         Creates a new browser and context to be ran given an existing BrowserEngine.
         """
         self.engine = engine
         self.main_browser: Optional[PWBrowser] = None
+        self.verify = verify
+        self.proxy = proxy
         # Launching browser
         context_ptr = self.create_instance(*args, **kwargs)
         self.context = BrowserObjectWrapper(context_ptr, self.engine)
@@ -55,14 +64,18 @@ class BrowserClient(AsyncObject):
         """
         # if no extensions are present, we can use a regular context
         browser = await AsyncNewBrowser(
-            self.engine.playwright, **launch_args, i_know_what_im_doing=True
+            self.engine.playwright,
+            geoip=bool(self.proxy),
+            proxy=self.proxy,
+            i_know_what_im_doing=True,
+            **launch_args,
         )
 
         # add pointer to the objects list to delete on shutdown
         self.main_browser = browser
 
         # create context with human emulation
-        injected_context = await browser.new_context()
+        injected_context = await browser.new_context(ignore_https_errors=not self.verify)
         return injected_context
 
 
