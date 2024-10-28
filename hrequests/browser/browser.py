@@ -21,8 +21,10 @@ class BrowserSession:
     Args:
         session (hrequests.session.TLSSession, optional): Session to use for headers, cookies, etc.
         resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
-        proxy (str, optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
+        proxy (Union[str, BaseProxy], optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
         mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
+        engine (BrowserEngine, optional): Pass in an existing BrowserEngine instead of creating a new one
+        verify (bool, optional): Whether to verify https requests
         os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
         **kwargs: Additional arguments to pass to Camoufox (see https://camoufox.com/python/usage)
 

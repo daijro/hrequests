@@ -16,7 +16,6 @@ P = ParamSpec("P")
 class BrowserClient(AsyncObject):
     """
     Implementation of Playwright that is threadsafe, and supports both sync and async addons.
-    This was originally going to in hrequests, but I decided to move it into Camoufox.
     """
 
     async def __ainit__(
