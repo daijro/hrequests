@@ -6,6 +6,7 @@ from sys import platform
 from typing import Optional, Tuple
 
 import rich.progress
+from geventhttpclient import HTTPClient
 from httpx import get, stream
 from orjson import loads
 
@@ -160,6 +161,16 @@ class Library:
         self.library.GetOpenPort.argtypes = []
         self.library.GetOpenPort.restype = ctypes.c_int
 
+    def spawn_http_client(self) -> HTTPClient:
+        return HTTPClient(
+            '127.0.0.1',
+            self.PORT,
+            ssl=False,
+            insecure=True,
+            connection_timeout=1e9,
+            network_timeout=1e9,
+        )
+
     def launch(self) -> None:
         # spawn the server
         self.PORT = self.get_open_port()
@@ -185,6 +196,8 @@ class Library:
         # launch the server
         ref: GoString = gostring(str(self.PORT))
         self.library.StartServer(ref)
+        # spawn the http client
+        self.http_client = self.spawn_http_client()
 
     def stop_server(self):
         # destroy the server

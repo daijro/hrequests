@@ -1,10 +1,14 @@
 from functools import partial
+from os import getenv
 from random import choice as rchoice
-from sys import modules, stderr
-from typing import Literal, Optional, Tuple, Union
+from typing import Dict, Literal, Optional, Tuple, Union, overload
+
+from browserforge.headers import Browser as BFConstraints
+from browserforge.headers import HeaderGenerator
+from ua_parser import user_agent_parser
 
 import hrequests
-from hrequests.headers import Headers
+from hrequests.proxies import BaseProxy
 from hrequests.reqs import *
 from hrequests.response import ProcessResponse
 
@@ -56,19 +60,20 @@ class TLSSession(TLSClient):
 
     def __init__(
         self,
-        client_identifier: str,
+        *,
         browser: Literal['firefox', 'chrome'],
+        version: Optional[int] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
         temp: bool = False,
         verify: bool = True,
         timeout: float = 30,
-        *args,
         **kwargs,
     ):
-        super().__init__(client_identifier=client_identifier, *args, **kwargs)
-
         self.browser: str = browser  # browser name
+
+        # browser version
+        self.tls_version: Optional[int] = version
 
         # sync network methods
         self.get: partial = partial(get, session=self)
@@ -89,15 +94,19 @@ class TLSSession(TLSClient):
         self.async_delete: partial = partial(async_delete, session=self)
 
         self.temp: bool = temp  # indicate if session is temporary
-        self._os: str = os or rchoice(('win', 'mac', 'lin'))  # os name
+        self._os: Literal['win', 'mac', 'lin'] = os or rchoice(('win', 'mac', 'lin'))  # os name
         self.verify: bool = verify  # default to verifying certs
         self.timeout: float = timeout  # default timeout
 
         # set headers
         if headers:
-            self.headers = CaseInsensitiveDict(headers)
+            self._headers = CaseInsensitiveDict(headers)
+            self.version = version or get_major_version(headers)
         else:
             self.resetHeaders(os=os)
+            assert self.version
+
+        super().__init__(client_identifier=f'{browser}_{self.tls_version}', **kwargs)
 
     def resetHeaders(
         self,
@@ -109,9 +118,23 @@ class TLSSession(TLSClient):
           ['win', 'mac', 'lin']
         Default is what it was initialized with, or the last value set
         """
-        if os:
-            self._os = os
-        self.headers = CaseInsensitiveDict(Headers(browser=self.browser, os=self._os).generate())
+        self.headers = CaseInsensitiveDict(
+            generate_headers(self.browser, version=self.tls_version, os=_os_set[os or self._os])
+        )
+
+    @property
+    def headers(self) -> CaseInsensitiveDict:
+        return self._headers
+
+    @headers.setter
+    def headers(self, headers: Union[dict, CaseInsensitiveDict]) -> None:
+        # print the line of the caller and the file
+        if isinstance(headers, dict):
+            headers = CaseInsensitiveDict(headers)
+
+        self._headers = headers
+        # Update the major version
+        self.version = get_major_version(headers)
 
     @property
     def os(self) -> str:
@@ -125,10 +148,16 @@ class TLSSession(TLSClient):
 
     def render(self, *args, **kwargs):
         # shortcut to render method
-        if 'playwright' in modules:
-            return hrequests.browser.render(*args, **kwargs, session=self, browser=self.browser)
-        else:
-            stderr.write('Cannot render. Playwright not installed.\n')
+        if not getenv('HREQUESTS_PW'):
+            raise ImportError(
+                'Browsers are not installed. Please run `python -m hrequests install`'
+            )
+        if self.browser == 'chrome':
+            raise NotImplementedError('Chrome rendering is not supported yet.')
+
+        return hrequests.browser.render(
+            *args, **kwargs, os=self._os, session=self, ff_version=self.version
+        )
 
     def request(
         self,
@@ -144,10 +173,9 @@ class TLSSession(TLSClient):
         history: bool = False,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
-        proxy: Optional[str] = None,
-        proxies: Optional[dict] = None,  # backwards compatibility
+        proxy: Optional[Union[str, BaseProxy]] = None,
         process: bool = True,
-    ) -> 'hrequests.response.Response':
+    ) -> Union['hrequests.response.Response', 'hrequests.response.ProcessResponse']:
         """
         Send a request with TLS client
 
@@ -163,14 +191,15 @@ class TLSSession(TLSClient):
             history (bool, optional): Remember request history. Defaults to False.
             verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
             timeout (float, optional): Timeout in seconds. Defaults to 30.
-            proxy (str, optional): Proxy URL. Defaults to None.
+            proxy (Union[str, BaseProxy], optional): Proxy URL. Defaults to None.
 
         Returns:
             hrequests.response.Response: Response object
         """
-        # unpack proxy
-        if proxies and not proxy:
-            proxy = self.unpack_proxy(proxies)
+        # convert BaseProxy to host string
+        if isinstance(proxy, BaseProxy):
+            proxy = str(proxy)
+
         proc = ProcessResponse(
             session=self,
             method=method,
@@ -196,7 +225,7 @@ class TLSSession(TLSClient):
 class Session(TLSSession):
     def __init__(
         self,
-        browser: Literal['firefox', 'chrome'] = 'chrome',
+        browser: Literal['firefox', 'chrome'] = 'firefox',
         version: Optional[int] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         headers: Optional[dict] = None,
@@ -206,7 +235,7 @@ class Session(TLSSession):
         '''
         Parameters:
             browser (Literal['firefox', 'chrome'], optional): Browser to use. Default is 'firefox'.
-            version (int, optional): Version of the browser to use. Browser must be specified. Default is randomized.
+            version (int, optional): The version of the browser's TLS to use.
             os (Literal['win', 'mac', 'lin'], optional): OS to use in header. Default is randomized.
             headers (dict, optional): Dictionary of HTTP headers to send with the request. Default is generated from `browser` and `os`.
             verify (bool, optional): Verify the server's TLS certificate. Defaults to True.
@@ -220,19 +249,20 @@ class Session(TLSSession):
             catch_panics (bool, optional): Catch panics. Defaults to False.
             debug (bool, optional): Debug mode. Defaults to False.
         '''
-        # random version if not specified
-        if not version:
-            version = _browsers[browser].version
         # if version is specified, check if it is supported
-        elif version not in _browsers[browser].versions:
+        if version and version not in _browsers[browser].versions:
             raise ValueError(
                 f'`{version}` is not a supported {browser} version: {_browsers[browser].versions}'
             )
-        self.version = version
+        if version:
+            version = _browsers[browser].tls_version(version)
+        else:
+            # default to the latest tls
+            version = _browsers[browser].versions[-1]
 
         super().__init__(
-            client_identifier=f'{browser}_{version}',
             browser=browser,
+            version=version,
             headers=headers,
             os=os,
             *args,
@@ -241,12 +271,8 @@ class Session(TLSSession):
 
 
 class SessionShortcut:
-    name: str
-    versions: Tuple[int]
-
-    @classmethod
-    def version(cls) -> int:
-        return rchoice(cls.versions)
+    name: Literal['firefox', 'chrome']
+    versions: Tuple[int, ...]
 
     @classmethod
     def Session(
@@ -258,11 +284,19 @@ class SessionShortcut:
     ) -> Session:
         return Session(
             browser=cls.name,
-            version=version or cls.version(),
+            version=version,
             os=os,
             *args,
             **kwargs,
         )
+
+    @classmethod
+    def tls_version(cls, version: int) -> int:
+        # Find the minimum corresponding TLS version
+        for v in cls.versions[::-1]:
+            if version >= v:
+                return v
+        raise ValueError(f'No supported TLS version found for {cls.name.title()}: {version}')
 
     @classmethod
     def BrowserSession(
@@ -276,14 +310,47 @@ class SessionShortcut:
 
 
 class firefox(SessionShortcut):
-    name: str = 'firefox'
-    versions: Tuple[int] = (102, 104, 105, 106, 108, 110, 117, 120)
+    name: Literal['firefox'] = 'firefox'
+    versions: Tuple[int, ...] = (102, 104, 105, 106, 108, 110, 117, 120, 123)
 
 
 class chrome(SessionShortcut):
-    name: str = 'chrome'
-    versions: Tuple[int] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117)
+    name: Literal['chrome'] = 'chrome'
+    versions: Tuple[int, ...] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117, 120, 124)
 
 
-_browsers: dict = {'firefox': firefox, 'chrome': chrome}
-_os_set: set = {'win', 'mac', 'lin'}
+_browsers = {'firefox': firefox, 'chrome': chrome}
+_os_set = {'win': 'windows', 'mac': 'macos', 'lin': 'linux'}
+
+
+_hg = HeaderGenerator()
+
+
+def generate_headers(name: str, version: Optional[int] = None, **kwargs) -> Dict[str, str]:
+    """
+    Generate headers for a browser
+
+    Args:
+        name (str): Browser name
+        version (int, optional): Browser version. If specified, the max supported version
+            in the TLS versioning range is used.
+        kwargs: Additional keyword arguments to pass to `HeaderGenerator.generate`
+
+    Returns:
+        Tuple[Dict[str, str], int]: Headers and major version
+    """
+    browser: Union[str, BFConstraints]
+    if version:
+        # Find the max supported version in the TLS versioning range
+        browser = BFConstraints(name=name, min_version=version)
+    else:
+        browser = name
+    return _hg.generate(browser=(browser,), **kwargs)
+
+
+def get_major_version(headers: Union[Dict[str, str], CaseInsensitiveDict]) -> Optional[int]:
+    # Get the major version
+    if 'User-Agent' not in headers:
+        return None
+    major_version = user_agent_parser.ParseUserAgent(headers['User-Agent']).get('major')
+    return int(major_version) if major_version else None

@@ -27,26 +27,23 @@ if detect_module():
     os.environ['HREQUESTS_MODULE'] = '1'
 
 
-from .response import Response, ProcessResponse
-from .session import Session, TLSSession, chrome, firefox
 from .reqs import *
-from .headers import Headers
-
+from .response import ProcessResponse, Response
+from .session import Session, TLSSession, chrome, firefox
 
 # attempt to import headless browsing dependencies
 try:
-    from .playwright_mock import ChromeBrowser, FirefoxBrowser
-    from .browser import BrowserSession, render
+    from .browser import BrowserClient, BrowserSession, render
 
     os.environ['HREQUESTS_PW'] = '1'
-except ModuleNotFoundError:
+except ModuleNotFoundError as e:
     from rich import print as rprint
 
     if not os.getenv('HREQUESTS_MODULE'):
         rprint(
             r'[bright_yellow]WARNING: Please run [white]pip install hrequests\[all][/] for automated browsing support.'
         )
+    raise e
 
+from .__version__ import __author__, __version__
 from .parser import HTML
-from .__version__ import __version__
-from .__version__ import __author__

@@ -1,14 +1,15 @@
+import base64
 import re
 import uuid
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlencode
 
-from geventhttpclient import HTTPClient
 from orjson import dumps, loads
 
 import hrequests
 from hrequests.cffi import library
+from hrequests.proxies import BaseProxy
 
 from .cookies import (
     RequestsCookieJar,
@@ -20,11 +21,6 @@ from .cookies import (
 )
 from .exceptions import ClientException, ProxyFormatException
 from .toolbelt import CaseInsensitiveDict
-
-try:
-    import turbob64 as base64
-except ImportError:
-    import base64
 
 '''
 TLSClient heavily based on https://github.com/FlorianREGAZ/Python-Tls-Client
@@ -50,7 +46,7 @@ class TLSClient:
     force_http1: bool = False
     catch_panics: bool = False
     debug: bool = False
-    proxy: Optional[str] = None
+    proxy: Optional[Union[str, BaseProxy]] = None
     cookies: Optional[RequestsCookieJar] = None
     certificate_pinning: Optional[Dict[str, List[str]]] = None
     disable_ipv6: bool = False
@@ -71,9 +67,6 @@ class TLSClient:
     priority_frames: Optional[list] = None
     header_order: Optional[List[str]] = None
     header_priority: Optional[List[str]] = None
-
-    # backwards compatibility
-    proxies: Optional[Dict[str, str]] = None
 
     '''
     Synopsis:
@@ -250,23 +243,8 @@ class TLSClient:
     '''
 
     def __post_init__(self) -> None:
-        self._session_id: str = str(uuid.uuid4())
+        self.id: str = str(uuid.uuid4())
 
-        self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
-        # set first item of proxies to self.proxy (backwards compatibility)
-        if self.proxies:
-            self.proxy = self.unpack_proxy(self.proxies)
-            del self.proxies
-
-        # http client for local go server
-        self.server: HTTPClient = HTTPClient(
-            '127.0.0.1',
-            library.PORT,
-            ssl=False,
-            insecure=True,
-            connection_timeout=1e9,
-            network_timeout=1e9,
-        )
         # CookieJar containing all currently outstanding cookies set on this session
         self.cookies: RequestsCookieJar = self.cookies or RequestsCookieJar()
         self._closed: bool = False  # indicate if session is closed
@@ -274,8 +252,7 @@ class TLSClient:
     def close(self):
         if not self._closed:
             self._closed = True
-            library.destroy_session(self._session_id)
-            self.server.close()
+            library.destroy_session(self.id)
 
     def __enter__(self):
         return self
@@ -285,14 +262,6 @@ class TLSClient:
 
     def __del__(self):
         self.close()
-
-    @staticmethod
-    def unpack_proxy(proxies: Dict[str, str]) -> str:
-        # unpack the proxy dict to a single string
-        key, value = next(iter(proxies.items()))
-        if key not in SUPPORTED_PROXIES:
-            raise ProxyFormatException(f'Proxy must be of the following type: {SUPPORTED_PROXIES}')
-        return value
 
     def build_request(
         self,
@@ -306,7 +275,7 @@ class TLSClient:
         history: bool = True,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
-        proxy: Optional[Union[str, dict]] = None,
+        proxy: Optional[Union[str, BaseProxy]] = None,
     ):
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
@@ -353,13 +322,15 @@ class TLSClient:
 
         # Proxy
         proxy = proxy or self.proxy
+        if isinstance(proxy, BaseProxy):
+            proxy = str(proxy)
         if proxy:
             verify_proxy(proxy)
 
         # Request
         is_byte_request = isinstance(request_body, (bytes, bytearray))
         request_payload = {
-            'sessionId': self._session_id,
+            'sessionId': self.id,
             'followRedirects': allow_redirects,
             'wantHistory': history,
             'forceHttp1': self.force_http1,
@@ -379,7 +350,7 @@ class TLSClient:
             ),
             'requestCookies': cookiejar_to_list(self.cookies),
             'timeoutMilliseconds': int(timeout * 1000),
-            'withoutCookieJar': False,
+            'withoutCookieJar': True,
             'disableIPv6': self.disable_ipv6,
         }
         if self.certificate_pinning:
@@ -410,7 +381,6 @@ class TLSClient:
         url: str,
         headers: Optional[Union[dict, CaseInsensitiveDict]],
         response_object: dict,
-        proxy: str,
     ):
         if response_object['status'] == 0:
             raise ClientException(response_object['body'])
@@ -422,18 +392,17 @@ class TLSClient:
             response_headers=response_object['headers'],
         )
         # build response class
-        return hrequests.response.build_response(response_object, response_cookie_jar, proxy)
+        return hrequests.response.build_response(response_object, response_cookie_jar, self.proxy)
 
     def build_response(
         self,
         url,
         headers: Optional[Union[dict, CaseInsensitiveDict]],
         response_object: dict,
-        proxy: str,
     ):  # sourcery skip: assign-if-exp
         history: list = []
         if not response_object['isHistory']:
-            return self.build_response_obj(url, headers, response_object['response'], proxy)
+            return self.build_response_obj(url, headers, response_object['response'])
         resps: list = response_object['history']
         for index, item in enumerate(resps):
             if index:  # > 0
@@ -442,7 +411,7 @@ class TLSClient:
             else:
                 # use the original url
                 item_url = url
-            history.append(self.build_response_obj(item_url, headers, item, proxy))
+            history.append(self.build_response_obj(item_url, headers, item))
         # assign history to last response
         resp = history[-1]
         resp.history = history[:-1]
@@ -463,11 +432,11 @@ class TLSClient:
         request_payload, headers = self.build_request(method, url, headers, *args, **kwargs)
         try:
             # send request
-            resp = self.server.post(
+            resp = library.http_client.post(
                 f'http://127.0.0.1:{library.PORT}/request', body=dumps(request_payload)
             )
             response_object = loads(resp.read())
         except Exception as e:
             raise ClientException('Request failed') from e
         # build response class
-        return self.build_response(url, headers, response_object, request_payload['proxyUrl'])
+        return self.build_response(url, headers, response_object)
