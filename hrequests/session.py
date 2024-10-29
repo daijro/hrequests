@@ -119,7 +119,7 @@ class TLSSession(TLSClient):
         Default is what it was initialized with, or the last value set
         """
         self.headers = CaseInsensitiveDict(
-            generate_headers(self.browser, version=self.tls_version, os=_os_set[os or self._os])
+            generate_headers(self.browser, version=self.tls_version, os=OS_MAP[os or self._os])
         )
 
     @property
@@ -142,7 +142,7 @@ class TLSSession(TLSClient):
 
     @os.setter
     def os(self, os: Literal['win', 'mac', 'lin']):
-        if os not in _os_set:
+        if os not in OS_MAP:
             raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
         self.resetHeaders(os=os)
 
@@ -250,15 +250,15 @@ class Session(TLSSession):
             debug (bool, optional): Debug mode. Defaults to False.
         '''
         # if version is specified, check if it is supported
-        if version and version not in _browsers[browser].versions:
+        if version and version not in BROWSER_MAP[browser].versions:
             raise ValueError(
-                f'`{version}` is not a supported {browser} version: {_browsers[browser].versions}'
+                f'`{version}` is not a supported {browser} version: {BROWSER_MAP[browser].versions}'
             )
         if version:
-            version = _browsers[browser].tls_version(version)
+            version = BROWSER_MAP[browser].tls_version(version)
         else:
             # default to the latest tls
-            version = _browsers[browser].versions[-1]
+            version = BROWSER_MAP[browser].versions[-1]
 
         super().__init__(
             browser=browser,
@@ -319,8 +319,8 @@ class chrome(SessionShortcut):
     versions: Tuple[int, ...] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117, 120, 124)
 
 
-_browsers = {'firefox': firefox, 'chrome': chrome}
-_os_set = {'win': 'windows', 'mac': 'macos', 'lin': 'linux'}
+BROWSER_MAP = {'firefox': firefox, 'chrome': chrome}
+OS_MAP = {'win': 'windows', 'mac': 'macos', 'lin': 'linux'}
 
 
 _hg = HeaderGenerator()

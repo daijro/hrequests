@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Set, Union
 from urllib.parse import urlencode
 
+from geventhttpclient import HTTPClient
 from orjson import dumps, loads
 
 import hrequests
@@ -245,6 +246,15 @@ class TLSClient:
     def __post_init__(self) -> None:
         self.id: str = str(uuid.uuid4())
 
+        # http client for local go server
+        self.server: HTTPClient = HTTPClient(
+            '127.0.0.1',
+            library.PORT,
+            ssl=False,
+            insecure=True,
+            connection_timeout=1e9,
+            network_timeout=1e9,
+        )
         # CookieJar containing all currently outstanding cookies set on this session
         self.cookies: RequestsCookieJar = self.cookies or RequestsCookieJar()
         self._closed: bool = False  # indicate if session is closed
@@ -253,6 +263,7 @@ class TLSClient:
         if not self._closed:
             self._closed = True
             library.destroy_session(self.id)
+            self.server.close()
 
     def __enter__(self):
         return self
@@ -350,7 +361,7 @@ class TLSClient:
             ),
             'requestCookies': cookiejar_to_list(self.cookies),
             'timeoutMilliseconds': int(timeout * 1000),
-            'withoutCookieJar': True,
+            'withoutCookieJar': False,
             'disableIPv6': self.disable_ipv6,
         }
         if self.certificate_pinning:
@@ -381,6 +392,7 @@ class TLSClient:
         url: str,
         headers: Optional[Union[dict, CaseInsensitiveDict]],
         response_object: dict,
+        proxy: str,
     ):
         if response_object['status'] == 0:
             raise ClientException(response_object['body'])
@@ -392,17 +404,18 @@ class TLSClient:
             response_headers=response_object['headers'],
         )
         # build response class
-        return hrequests.response.build_response(response_object, response_cookie_jar, self.proxy)
+        return hrequests.response.build_response(response_object, response_cookie_jar, proxy)
 
     def build_response(
         self,
         url,
         headers: Optional[Union[dict, CaseInsensitiveDict]],
         response_object: dict,
+        proxy: str,
     ):  # sourcery skip: assign-if-exp
         history: list = []
         if not response_object['isHistory']:
-            return self.build_response_obj(url, headers, response_object['response'])
+            return self.build_response_obj(url, headers, response_object['response'], proxy)
         resps: list = response_object['history']
         for index, item in enumerate(resps):
             if index:  # > 0
@@ -411,7 +424,7 @@ class TLSClient:
             else:
                 # use the original url
                 item_url = url
-            history.append(self.build_response_obj(item_url, headers, item))
+            history.append(self.build_response_obj(item_url, headers, item, proxy))
         # assign history to last response
         resp = history[-1]
         resp.history = history[:-1]
@@ -432,11 +445,11 @@ class TLSClient:
         request_payload, headers = self.build_request(method, url, headers, *args, **kwargs)
         try:
             # send request
-            resp = library.http_client.post(
+            resp = self.server.post(
                 f'http://127.0.0.1:{library.PORT}/request', body=dumps(request_payload)
             )
             response_object = loads(resp.read())
         except Exception as e:
             raise ClientException('Request failed') from e
         # build response class
-        return self.build_response(url, headers, response_object)
+        return self.build_response(url, headers, response_object, request_payload['proxyUrl'])

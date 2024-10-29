@@ -12,6 +12,7 @@ from hrequests.cookies import RequestsCookieJar, cookiejar_to_list, list_to_cook
 from hrequests.exceptions import JavascriptException
 from hrequests.proxies import BaseProxy
 from hrequests.response import Response
+from hrequests.session import OS_MAP
 
 from .engine import BrowserEngine, BrowserObjectWrapper
 
@@ -72,6 +73,7 @@ class BrowserSession:
         resp: Optional[hrequests.response.Response] = None,
         proxy: Optional[Union[str, BaseProxy]] = None,
         mock_human: bool = False,
+        os: Optional[Literal['win', 'mac', 'lin']] = None,
         engine: Optional['BrowserEngine'] = None,
         verify: bool = True,
         **launch_options,
@@ -93,6 +95,7 @@ class BrowserSession:
 
         self.proxy: Optional[Proxy] = Proxy.from_url(proxy) if proxy else None
         self.verify: bool = verify
+        self.os: Literal['win', 'mac', 'lin'] = os
 
         # Browser config
         self.status_code: Optional[int]
@@ -123,6 +126,7 @@ class BrowserSession:
             engine=self.engine,
             proxy=self.proxy.to_playwright() if self.proxy else None,
             verify=self.verify,
+            os=OS_MAP[self.os] if self.os else None,
             **self.launch_options,
         )
         # Create a new page

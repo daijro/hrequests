@@ -33,7 +33,7 @@ from .session import Session, TLSSession, chrome, firefox
 
 # attempt to import headless browsing dependencies
 try:
-    from .browser import BrowserClient, BrowserSession, render
+    from .browser import BrowserClient, BrowserEngine, BrowserSession, render
 
     os.environ['HREQUESTS_PW'] = '1'
 except ModuleNotFoundError as e:
