@@ -73,6 +73,7 @@ class BrowserSession:
         resp: Optional[hrequests.response.Response] = None,
         proxy: Optional[Union[str, BaseProxy]] = None,
         mock_human: bool = False,
+        extensions: Optional[List[str]] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         engine: Optional['BrowserEngine'] = None,
         verify: bool = True,
@@ -109,6 +110,8 @@ class BrowserSession:
 
         # Launch options
         self.launch_options: dict = launch_options
+        if extensions:
+            self.launch_options['addons'] = extensions
 
         # Handle mock_human
         self.mock_human: bool = mock_human

@@ -15,11 +15,10 @@ class EvomiProxy(BaseProxy):
         username: str,
         key: str,
         country: Optional[str] = None,
-        city: Optional[str] = None,
         region: Optional[str] = None,
-        isp: Optional[str] = None,
-        asn: Optional[str] = None,
+        city: Optional[str] = None,
         continent: Optional[str] = None,
+        isp: Optional[str] = None,
         pool: Optional[Literal["standard", "speed", "quality"]] = None,
         session_type: Literal["session", "hardsession"] = "session",
         auto_rotate: bool = False,
@@ -39,12 +38,11 @@ class EvomiProxy(BaseProxy):
         self._auto_rotate = auto_rotate
 
         self._data = {
+            "continent": _to_proxy_fmt(continent),
+            "city": _to_proxy_fmt(city),
+            "region": _to_proxy_fmt(region),
             "country": country,
-            "city": city,
-            "region": region,
             "isp": isp,
-            "asn": asn,
-            "continent": continent,
             "pool": pool,
             "lifetime": lifetime,
             "adblock": 1 if adblock else None,
@@ -88,12 +86,119 @@ class ResidentialProxy(EvomiProxy):
     URL = "http://{username}:{key}{data}@rp.evomi.com:1000"
     SERVICE = "Evomi Residential"
 
+    def __init__(
+        self,
+        username: str,
+        key: str,
+        country: Optional[str] = None,
+        region: Optional[str] = None,
+        city: Optional[str] = None,
+        continent: Optional[str] = None,
+        isp: Optional[str] = None,
+        pool: Optional[Literal["standard", "speed", "quality"]] = None,
+        session_type: Literal["session", "hardsession"] = "session",
+        auto_rotate: bool = False,
+        lifetime: Optional[int] = None,
+        adblock: bool = False,
+    ):
+        """
+        Initialize a new Evomi Residential proxy.
 
-class DatacenterProxy(EvomiProxy):
-    URL = "http://{username}:{key}{data}@dcp.evomi.com:2000"
-    SERVICE = "Evomi Datacenter"
+        Parameters:
+            username (str): Your Evomi username
+            key (str): Your Evomi API key
+            country (str, optional): Target country code (e.g., 'US', 'GB')
+            region (str, optional): Target region/state
+            city (str, optional): Target city name
+            continent (str, optional): Target continent name
+            isp (str, optional): Target ISP
+            pool (Literal["standard", "speed", "quality"], optional): Proxy pool type
+            session_type (Literal["session", "hardsession"]): Session persistence type
+                * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+                * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+                Defaults to "session".
+            auto_rotate (bool): Whether to automatically rotate IPs between requests.
+                Cannot be used with `session_type`.
+            lifetime (int, optional): Duration of the session in minutes (1-120)
+                Only works with `session_type="session"`. Defaults to 40 if not specified.
+            adblock (bool): Whether to enable ad blocking. Defaults to False.
+        """
+        super().__init__(**locals())
 
 
 class MobileProxy(EvomiProxy):
     URL = "http://{username}:{key}{data}@mp.evomi.com:3000"
     SERVICE = "Evomi Mobile"
+
+    def __init__(
+        self,
+        username: str,
+        key: str,
+        country: Optional[str] = None,
+        region: Optional[str] = None,
+        continent: Optional[str] = None,
+        isp: Optional[str] = None,
+        session_type: Literal["session", "hardsession"] = "session",
+        auto_rotate: bool = False,
+        lifetime: Optional[int] = None,
+    ):
+        """
+        Initialize a new Evomi Mobile proxy.
+
+        Parameters:
+            username (str): Your Evomi username
+            key (str): Your Evomi API key
+            country (str, optional): Target country code (e.g., 'US', 'GB')
+            continent (str, optional): Target continent name
+            isp (str, optional): Target ISP
+            session_type (Literal["session", "hardsession"]): Session persistence type
+                * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+                * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+                Defaults to "session".
+            auto_rotate (bool): Whether to automatically rotate IPs between requests.
+                Cannot be used with `session_type`.
+            lifetime (int, optional): Duration of the session in minutes (1-120)
+                Only works with `session_type="session"`. Defaults to 40 if not specified.
+        """
+        super().__init__(**locals())
+
+
+class DatacenterProxy(EvomiProxy):
+    URL = "http://{username}:{key}{data}@dcp.evomi.com:2000"
+    SERVICE = "Evomi Datacenter"
+
+    def __init__(
+        self,
+        username: str,
+        key: str,
+        country: Optional[str] = None,
+        continent: Optional[str] = None,
+        session_type: Literal["session", "hardsession"] = "session",
+        auto_rotate: bool = False,
+        lifetime: Optional[int] = None,
+    ):
+        """
+        Initialize a new Evomi Datacenter proxy.
+
+        Parameters:
+            username (str): Your Evomi username
+            key (str): Your Evomi API key
+            country (str, optional): Target country code (e.g., 'US', 'GB')
+            continent (str, optional): Target continent name
+            session_type (Literal["session", "hardsession"]): Session persistence type
+                * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+                * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+                Defaults to "session".
+            auto_rotate (bool): Whether to automatically rotate IPs between requests.
+                Cannot be used with `session_type`.
+            lifetime (int, optional): Duration of the session in minutes (1-120)
+                Only works with `session_type="session"`. Defaults to 40 if not specified.
+        """
+        super().__init__(**locals())
+
+
+def _to_proxy_fmt(s: Optional[str]) -> Optional[str]:
+    if s is None:
+        return None
+    # Replaces "New York" with "new.york"
+    return '.'.join(s.lower().split())
