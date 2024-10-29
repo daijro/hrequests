@@ -1,7 +1,7 @@
 from functools import partial
 from os import getenv
 from random import choice as rchoice
-from typing import Dict, Literal, Optional, Tuple, Union, overload
+from typing import Dict, Literal, Optional, Tuple, Union
 
 from browserforge.headers import Browser as BFConstraints
 from browserforge.headers import HeaderGenerator
