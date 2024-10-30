@@ -58,6 +58,16 @@
 
 ---
 
+### 🏠 Residential Proxy Rotation
+
+Hrequests includes built-in proxy rotation powered by [Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests). 🚀
+
+[Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests) is a high quality Swiss proxy provider, with residential proxies avaliable in 150+ countries starting at $2.2/GB. For more information on using Evomi in hrequests, see the [Evomi proxy guide](#evomi-proxies).
+
+<img src="https://my.evomi.com/images/brand/cta.png" alt="Evomi Banner" href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests" width="70%">
+
+---
+
 # Installation
 
 Install via pip:
@@ -84,12 +94,12 @@ pip install -U hrequests
 
 **For the latest stable hrequests documentation, check the [Gitbook page](https://daijro.gitbook.io/hrequests/).**
 
-1. [Simple Usage](https://github.com/daijro/hrequests#simple-usage)
-2. [Sessions](https://github.com/daijro/hrequests#sessions)
-3. [Concurrent & Lazy Requests](https://github.com/daijro/hrequests#concurrent--lazy-requests)
-4. [HTML Parsing](https://github.com/daijro/hrequests#html-parsing)
-5. [Browser Automation](https://github.com/daijro/hrequests#browser-automation)
-6. [Evomi Proxies](https://github.com/daijro/hrequests#evomi-proxies)
+1. [Simple Usage](#simple-usage)
+2. [Sessions](#sessions)
+3. [Concurrent & Lazy Requests](#concurrent--lazy-requests)
+4. [HTML Parsing](#html-parsing)
+5. [Browser Automation](#browser-automation)
+6. [Evomi Proxies](#evomi-proxies)
 
 <hr width=50>
 
@@ -358,7 +368,7 @@ Note: In `nohup`, a new thread is created for each request. For larger scale con
 
 ### Easy Concurrency
 
-You can pass an array/iterator of links to the request methods to send them concurrently. This wraps around [`hrequests.map`](https://github.com/daijro/hrequests#map):
+You can pass an array/iterator of links to the request methods to send them concurrently. This wraps around [`hrequests.map`](#map):
 
 ```py
 >>> hrequests.get(['https://google.com/', 'https://github.com/'])
