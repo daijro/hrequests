@@ -73,7 +73,7 @@ Hrequests includes built-in proxy rotation powered by [Evomi](https://evomi.com?
 - 🤝 **Special IP Pool selection**: Optimize for fast, quality, or quantity of IPs
 - 🔧 **Easy Integration**: Compatible with most software and programming languages
 
-<img src="https://my.evomi.com/images/brand/cta.png" alt="Evomi Banner" href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests" width="85%">
+[![Evomi Banner](https://my.evomi.com/images/brand/cta.png)](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests)
 
 ---
 
