@@ -64,7 +64,16 @@ Hrequests includes built-in proxy rotation powered by [Evomi](https://evomi.com?
 
 [Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests) is a high quality Swiss proxy provider, with residential proxies avaliable in 150+ countries starting at $2.2/GB. For more information on using Evomi in hrequests, see the [Evomi proxy guide](#evomi-proxies).
 
-<img src="https://my.evomi.com/images/brand/cta.png" alt="Evomi Banner" href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests" width="70%">
+- 👩‍💻 **24/7 Expert Support**: Evomi will join your Slack Channel
+- 🌍 **Global Presence**: Available in 150+ Countries
+- ⚡ **Low Latency**
+- 🔒 **Swiss Quality & Privacy**
+- 🎁 **Free Trial**
+- 🛡️ **99.9% Uptime**
+- 🤝 **Special IP Pool selection**: Optimize for fast, quality, or quantity of IPs
+- 🔧 **Easy Integration**: Compatible with most software and programming languages
+
+<img src="https://my.evomi.com/images/brand/cta.png" alt="Evomi Banner" href="https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests" width="85%">
 
 ---
 
