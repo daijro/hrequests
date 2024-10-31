@@ -33,7 +33,8 @@ httpx = "*"
 geventhttpclient = "*"
 urllib3 = "*"
 playwright = { version = "*", optional = true }
-camoufox = { version = "^0.3.3", optional = true, extras = ["geoip"] }
+camoufox = { version = "^0.3.5", optional = true, extras = ["geoip"] }
+typing-extensions = "*"
 rich = "*"
 click = "*"
 async-class = "*"

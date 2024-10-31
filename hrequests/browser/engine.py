@@ -2,12 +2,13 @@ import asyncio
 import functools
 from concurrent.futures import Future
 from threading import Event, Lock, Thread
-from typing import Callable, Dict, Optional, ParamSpec, Set, TypeVar
+from typing import Callable, Dict, Optional, Set
 
 from async_class import AsyncObject
 from camoufox.async_api import AsyncNewBrowser
 from playwright.async_api import Browser as PWBrowser
 from playwright.async_api import async_playwright
+from typing_extensions import ParamSpec, TypeVar
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -146,7 +147,7 @@ class BrowserEngine:
     def execute(self, fn: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
         # wait if the engine has not started yet
         self.start_event.wait()
-        future: Future[T] = asyncio.run_coroutine_threadsafe(fn(*args, **kwargs), self.loop)
+        future: Future = asyncio.run_coroutine_threadsafe(fn(*args, **kwargs), self.loop)
         return self.__handle_future(future)
 
 

@@ -9,7 +9,7 @@
         <img src="https://img.shields.io/github/license/daijro/hrequests.svg">
     </a>
     <a href="https://python.org/">
-        <img src="https://img.shields.io/badge/python-3.8&#8208;3.12-blue">
+        <img src="https://img.shields.io/badge/python-3.8&#8208;3.13-blue">
     </a>
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
