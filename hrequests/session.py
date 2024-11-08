@@ -147,16 +147,14 @@ class TLSSession(TLSClient):
         self.resetHeaders(os=os)
 
     def render(self, *args, **kwargs):
-        # shortcut to render method
-        if not getenv('HREQUESTS_PW'):
-            raise ImportError(
-                'Browsers are not installed. Please run `python -m hrequests install`'
-            )
-        if self.browser == 'chrome':
-            raise NotImplementedError('Chrome rendering is not supported yet.')
-
+        """Shortcut to render method"""
         return hrequests.browser.render(
-            *args, **kwargs, os=self._os, session=self, ff_version=self.version
+            *args,
+            **kwargs,
+            os=self._os,
+            session=self,
+            ff_version=self.version,
+            browser_type='firefox',
         )
 
     def request(

@@ -32,8 +32,9 @@ orjson = "*"
 httpx = "*"
 geventhttpclient = "*"
 urllib3 = "*"
-playwright = { version = "*", optional = true }
 camoufox = { version = "^0.3.5", optional = true, extras = ["geoip"] }
+patchright = { version = "*", optional = true }
+playwright = { version = "*", optional = true }
 typing-extensions = "*"
 rich = "*"
 click = "*"
@@ -44,7 +45,9 @@ parse = "*"
 selectolax = "*"
 event = "*"
 faust-cchardet = "*"
-msvc-runtime = { version = "*", markers = "sys_platform == 'win32' and python_version < '3.12'" }
+msvc-runtime = { version = "*", markers = "sys_platform == 'win32' and python_version < '3.13'" }
 
 [tool.poetry.extras]
-all = ["playwright", "camoufox", "geoip"]
+all = ["camoufox", "patchright", "playwright"]
+firefox = ["camoufox", "playwright"]
+chrome = ["patchright"]

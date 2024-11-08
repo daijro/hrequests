@@ -3,9 +3,10 @@ Hrequests initializer
 '''
 
 import os
+from importlib.util import find_spec
 
 
-def detect_module() -> bool:
+def _detect_module() -> bool:
     '''
     Hacky way to detect if hrequests is being ran as a module
     '''
@@ -23,7 +24,7 @@ def detect_module() -> bool:
     return False
 
 
-if detect_module():
+if _detect_module():
     os.environ['HREQUESTS_MODULE'] = '1'
 
 
@@ -32,11 +33,12 @@ from .response import ProcessResponse, Response
 from .session import Session, TLSSession, chrome, firefox
 
 # attempt to import headless browsing dependencies
-try:
-    from .browser import BrowserClient, BrowserEngine, BrowserSession, render
+BROWSER_SUPPORT = str(int(bool(find_spec('camoufox') or find_spec('patchright'))))
+if BROWSER_SUPPORT:
+    from .browser import BrowserEngine, BrowserSession, render
 
     os.environ['HREQUESTS_PW'] = '1'
-except ModuleNotFoundError as e:
+else:
     from rich import print as rprint
 
     if not os.getenv('HREQUESTS_MODULE'):

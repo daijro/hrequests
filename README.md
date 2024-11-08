@@ -41,7 +41,7 @@
 ### 💻 Browser crawling
 
 - Simple & uncomplicated browser automation
-- Anti-detect browsing using [Camoufox](https://camoufox.com) (**new in v0.9.0!**)
+- Anti-detect browsing using [Camoufox](https://camoufox.com) and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) (**new in v0.9.0!**)
 - Human-like cursor movement and typing
 - Full page screenshots
 - Proxy support
@@ -684,10 +684,10 @@ Search for links within an element:
 
 ## Browser Automation
 
-Hrequests supports both Firefox and Chrome browsers, headless and headful sessions, and browser addons/extensions:
+Hrequests supports both Firefox and Chrome browsers, headless and headful sessions:
 
-> [!NOTE]
-> As of v0.9.0, Hrequests no longer supports rendering Chrome sessions. Hrequests now uses [Camoufox](https://camoufox.com) instead.
+> [!WARNING]
+> It is recommended to use Firefox instead. Chrome does not support fingerprint rotation, mocking human mouse movements, or browser extensions.
 
 ### Usage
 
@@ -1443,15 +1443,20 @@ Target a specific state, province, or territory. Residential and Mobile proxies 
 
 This project includes code adapted from the following sources:
 
-- **Botright**
-
-  - Author: Vinyzu
-  - Repository: https://github.com/Vinyzu/Botright
-  - License: GNU General Public License v3.0
-  - Used for [`playwright_mock`](https://github.com/daijro/hrequests/tree/main/hrequests/playwright_mock) submodule
-
 - **tls-client**
   - Author: bogdanfinn
   - Repository: https://github.com/bogdanfinn/tls-client
   - License: BSD-4-Clause license
   - Used in [bridge/server.go](https://github.com/daijro/hrequests/blob/main/bridge/server.go)
+
+- **Minet**
+  - Author: medialab
+  - Repository: https://github.com/medialab/minet
+  - License: GPL-3.0
+  - Inspired the threadsafe implementation of Playwright
+
+- **Patchright**
+  - Author: Vinyzu and Kaliiiiiiiiii
+  - Repository: https://github.com/Kaliiiiiiiiii-Vinyzu/patchright
+  - License: Apache License 2.0
+  - Used for Chrome browser support

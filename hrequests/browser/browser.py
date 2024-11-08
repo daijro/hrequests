@@ -3,8 +3,6 @@ from http.client import responses as status_codes
 from random import randint
 from typing import Any, Callable, Dict, List, Literal, Optional, Pattern, Union
 
-from playwright._impl._errors import Error as PlaywrightError
-
 import hrequests
 from hrequests.browser.proxy import Proxy
 from hrequests.client import CaseInsensitiveDict
@@ -14,6 +12,7 @@ from hrequests.proxies import BaseProxy
 from hrequests.response import Response
 from hrequests.session import OS_MAP
 
+from .common import ERROR, browser_client
 from .engine import BrowserEngine, BrowserObjectWrapper
 
 
@@ -76,19 +75,21 @@ class BrowserSession:
         extensions: Optional[List[str]] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         engine: Optional['BrowserEngine'] = None,
+        browser_type: Literal['firefox', 'chrome'] = 'firefox',
         verify: bool = True,
         **launch_options,
     ) -> None:
         # Remember session and resp to clone cookies back to when closing
         self.session: Optional[hrequests.session.TLSSession] = session
         self.resp: Optional[hrequests.response.Response] = resp
+        self.browser_type: Literal['firefox', 'chrome'] = browser_type
 
         # Set the engine, or create one if not provided
         if engine:
             self.engine = engine
             self.temp_engine = False
         else:
-            self.engine = BrowserEngine()
+            self.engine = BrowserEngine(browser_type=browser_type)
             self.temp_engine = True
 
         if isinstance(proxy, BaseProxy):
@@ -125,7 +126,8 @@ class BrowserSession:
 
     async def __start(self) -> None:
         # Build the playwright instance
-        self.client = await hrequests.BrowserClient(
+        self.client = await browser_client(
+            browser_type=self.browser_type,
             engine=self.engine,
             proxy=self.proxy.to_playwright() if self.proxy else None,
             verify=self.verify,
@@ -347,7 +349,7 @@ class BrowserSession:
         '''
         try:
             return self.page.evaluate(script, arg=arg)
-        except PlaywrightError as e:
+        except ERROR as e:
             raise JavascriptException('Javascript eval exception') from e
 
     def screenshot(
@@ -601,6 +603,7 @@ def render(
     proxy: Optional[Union[str, BaseProxy]] = None,
     response: Optional[hrequests.response.Response] = None,
     session: Optional[hrequests.session.TLSSession] = None,
+    browser_type: Literal['firefox', 'chrome'] = 'firefox',
     **kwargs,
 ):
     assert any(
@@ -612,6 +615,7 @@ def render(
         resp=response,
         proxy=proxy,
         headless=headless,
+        browser_type=browser_type,
         **kwargs,
     )
     # include headers from session if a TLSSession is provided

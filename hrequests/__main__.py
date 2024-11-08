@@ -1,12 +1,13 @@
 import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from functools import total_ordering
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple, Union
 
-import click
+import rich_click as click
 from browserforge.download import Download
 from camoufox.__main__ import CamoufoxUpdate
 from camoufox.locale import download_mmdb, remove_mmdb
@@ -114,7 +115,7 @@ class LibraryUpdate(LibraryManager):
         asset: Asset = self.latest_asset()
         if current_ver >= asset.version:
             rprint('[bright_green]:sparkles: hrequests-cgo library up to date! :tada:')
-            rprint(f'Current version: [green]v{current_ver}\n')
+            rprint(f'Current version: [green]v{current_ver}')
             return
 
         # download updated file
@@ -127,8 +128,62 @@ class LibraryUpdate(LibraryManager):
             rprint('[yellow]Warning: Could not remove outdated library files.')
 
 
-def playwright_exists() -> bool:
-    return 'playwright' in sys.modules
+class PatchrightInstall:
+    '''
+    Installs Chromium for Patchright
+    '''
+
+    def __init__(self) -> None:
+        from patchright._impl._driver import compute_driver_executable, get_driver_env
+
+        self.driver_executable = compute_driver_executable()
+        self.env = get_driver_env()
+
+    def execute(self, cmd: str) -> int:
+        rprint(f'[bright_yellow]Attempting to {cmd} Patchright Chrome...')
+        completed_process = subprocess.run([*self.driver_executable, cmd, 'chromium'], env=self.env)
+        rcode: int = completed_process.returncode
+        if rcode:
+            rprint(f'[red]Failed to {cmd} patchright. Return code: {rcode}')
+        return rcode
+
+    def install(self) -> bool:
+        return not self.execute('install')
+
+    def uninstall(self) -> bool:
+        rcode: int = self.execute('uninstall')
+        if rcode == 1:
+            rprint(
+                '[yellow]WARNING: On older versions of playwright, the `uninstall` command does not work.\n'
+                f'To manually uninstall, remove the cache from here: {self.browser_binaries()}'
+            )
+        return not rcode
+
+    @staticmethod
+    def browser_binaries() -> str:
+        r'''
+        Return the path to playwright browser binaries based on OS
+
+        %USERPROFILE%\AppData\Local\ms-playwright on Windows
+        ~/Library/Caches/ms-playwright on MacOS
+        ~/.cache/ms-playwright on Linux
+        '''
+        if sys.platform == 'win32':
+            return os.path.expandvars('%USERPROFILE%\\AppData\\Local\\ms-playwright')
+        if sys.platform == 'darwin':
+            return os.path.expanduser('~/Library/Caches/ms-playwright')
+        return os.path.expanduser('~/.cache/ms-playwright')
+
+
+HAS_PATCHRIGHT = 'patchright' in sys.modules
+HAS_CAMOUFOX = 'camoufox' in sys.modules
+
+
+def panel_msg(text: str) -> None:
+    panel = Panel.fit(
+        f'[bright_yellow]{text}',
+    )
+    rprint(panel)
 
 
 @click.group()
@@ -148,8 +203,8 @@ def update(headers=False, library=False):
         headers = library = True
     library and LibraryUpdate().update()
     if headers:
-        rprint('[bright_yellow]Downloading BrowserForge headers...')
-        Download(headers=True, fingerprints=playwright_exists())
+        rprint('\n[bright_yellow]Downloading BrowserForge headers...')
+        Download(headers=True, fingerprints=HAS_PATCHRIGHT or HAS_CAMOUFOX)
 
 
 @cli.command(name='install')
@@ -157,27 +212,33 @@ def install() -> None:
     '''
     Install playwright & all library components
     '''
-    if playwright_exists():
-        # install camoufox components
-        CamoufoxUpdate().update()
-        download_mmdb()
-    else:
-        panel = Panel.fit(
-            '[bright_yellow]Please run [white]pip install hrequests\\[all][/] for headless browsing support.',
-        )
-        rprint(panel)
-    # download browserforge headers
+    # Install hrequests components
+    LibraryUpdate().update()
+
+    # Download browserforge headers
     rprint('\n[bright_yellow]Downloading BrowserForge headers...')
-    Download(headers=True, fingerprints=playwright_exists())
+    Download(headers=True, fingerprints=HAS_PATCHRIGHT or HAS_CAMOUFOX)
     print('')  # newline to separate
 
-    # install hrequests components
-    LibraryUpdate().update()
+    if not (HAS_PATCHRIGHT or HAS_CAMOUFOX):
+        return panel_msg(
+            'Please run [white]pip install hrequests\\[all][/] for headless browsing support.',
+        )
+
+    # Download the Chrome browser
+    if HAS_PATCHRIGHT and PatchrightInstall().install():
+        rprint('[green]Chrome browser has been installed!\n')
+
+    # Download Camoufox
+    if HAS_CAMOUFOX:
+        CamoufoxUpdate().update()
+        download_mmdb()
 
 
 @cli.command(name='uninstall')
-@click.option('--camoufox', is_flag=True, help='Uninstall Camoufox as well')
-def uninstall(camoufox: bool) -> None:
+@click.option('--camoufox', is_flag=True, help='Uninstall Camoufox browser as well')
+@click.option('--patchright', is_flag=True, help='Uninstall Patchright Chrome browser as well')
+def uninstall(camoufox: bool, patchright: bool) -> None:
     '''
     Delete all library components
     '''
@@ -195,18 +256,24 @@ def uninstall(camoufox: bool) -> None:
             rprint(f'[green]Removed {path}')
         rprint('[bright_yellow]Library components have been removed.')
 
-    if not camoufox:
-        return
-    # check if playwright is installed
-    if not playwright_exists():
-        rprint('[bright_yellow]Playwright is not installed.')
-        return
-    # uninstall camoufox components
-    if not CamoufoxUpdate().cleanup():
-        rprint('[red]Camoufox binaries not found!')
+    # Uninstall Camoufox
+    if camoufox:
+        if HAS_CAMOUFOX:
+            # uninstall camoufox components
+            if not CamoufoxUpdate().cleanup():
+                rprint('[red]Camoufox binaries not found!')
+            # Remove the GeoIP database
+            remove_mmdb()
+        else:
+            rprint('[bright_yellow]Camoufox is not installed.')
 
-    # Remove the GeoIP database
-    remove_mmdb()
+    # Uninstall Patchright Chrome
+    if patchright:
+        if HAS_PATCHRIGHT:
+            if not PatchrightInstall().uninstall():
+                rprint('[red]Patchright Chrome not found!')
+        else:
+            rprint('[bright_yellow]Patchright is not installed.')
 
 
 @cli.command(name='version')
@@ -234,7 +301,7 @@ def version() -> None:
         if latest_ver == lib_ver:
             rprint('\t\t([yellow]Up to date![/])')
         else:
-            rprint(f'\t\t([yellow]latest = {latest_ver}[/])')
+            rprint(f'\t\t([yellow]latest: {latest_ver}[/])')
 
 
 if __name__ == '__main__':

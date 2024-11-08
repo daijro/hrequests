@@ -123,7 +123,20 @@ class ResidentialProxy(EvomiProxy):
                 Only works with `session_type="session"`. Defaults to 40 if not specified.
             adblock (bool): Whether to enable ad blocking. Defaults to False.
         """
-        super().__init__(**locals())
+        super().__init__(
+            username=username,
+            key=key,
+            country=country,
+            region=region,
+            city=city,
+            continent=continent,
+            isp=isp,
+            pool=pool,
+            session_type=session_type,
+            auto_rotate=auto_rotate,
+            lifetime=lifetime,
+            adblock=adblock,
+        )
 
 
 class MobileProxy(EvomiProxy):
@@ -160,7 +173,17 @@ class MobileProxy(EvomiProxy):
             lifetime (int, optional): Duration of the session in minutes (1-120)
                 Only works with `session_type="session"`. Defaults to 40 if not specified.
         """
-        super().__init__(**locals())
+        super().__init__(
+            username=username,
+            key=key,
+            country=country,
+            region=region,
+            continent=continent,
+            isp=isp,
+            session_type=session_type,
+            auto_rotate=auto_rotate,
+            lifetime=lifetime,
+        )
 
 
 class DatacenterProxy(EvomiProxy):
@@ -194,7 +217,15 @@ class DatacenterProxy(EvomiProxy):
             lifetime (int, optional): Duration of the session in minutes (1-120)
                 Only works with `session_type="session"`. Defaults to 40 if not specified.
         """
-        super().__init__(**locals())
+        super().__init__(
+            username=username,
+            key=key,
+            country=country,
+            continent=continent,
+            session_type=session_type,
+            auto_rotate=auto_rotate,
+            lifetime=lifetime,
+        )
 
 
 def _to_proxy_fmt(s: Optional[str]) -> Optional[str]:

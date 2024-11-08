@@ -221,20 +221,13 @@ class Response:
         proxy: Optional[Union[str, BaseProxy]] = None,
         **kwargs,
     ) -> 'hrequests.browser.BrowserSession':
-        if not os.getenv('HREQUESTS_PW'):
-            raise ImportError(
-                'Browsers are not installed. Please run `python -m hrequests install`'
-            )
-        if self.browser == 'chrome':
-            raise NotImplementedError('Chrome rendering is not supported yet.')
-
-        # return a BrowserSession object
         return hrequests.browser.render(
             url=self.url,  # Enable CORS requests during render: #56
             response=self,
             session=self.session,
             proxy=proxy or self.proxy,
             ff_version=self.version,
+            browser_type=self.browser,
             **kwargs,
         )
 

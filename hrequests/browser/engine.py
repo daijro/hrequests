@@ -1,20 +1,25 @@
 import asyncio
 import functools
+from abc import ABC, abstractmethod
 from concurrent.futures import Future
+from importlib.util import find_spec
 from threading import Event, Lock, Thread
 from typing import Callable, Dict, Optional, Set
 
 from async_class import AsyncObject
-from camoufox.async_api import AsyncNewBrowser
+from patchright.async_api import async_playwright as async_patchright
 from playwright.async_api import Browser as PWBrowser
 from playwright.async_api import async_playwright
-from typing_extensions import ParamSpec, TypeVar
+from typing_extensions import Literal, ParamSpec, TypeVar
+
+from hrequests import BROWSER_SUPPORT
+from hrequests.exceptions import MissingLibraryException
 
 T = TypeVar("T")
 P = ParamSpec("P")
 
 
-class BrowserClient(AsyncObject):
+class AbstractBrowserClient(AsyncObject, ABC):
     """
     Implementation of Playwright that is threadsafe, and supports both sync and async addons.
     """
@@ -34,6 +39,7 @@ class BrowserClient(AsyncObject):
         self.main_browser: Optional[PWBrowser] = None
         self.verify = verify
         self.proxy = proxy
+
         # Launching browser
         context_ptr = self.create_instance(*args, **kwargs)
         self.context = BrowserObjectWrapper(context_ptr, self.engine)
@@ -58,25 +64,12 @@ class BrowserClient(AsyncObject):
         """
         return self.engine.execute(self._start_context, **kwargs)
 
+    @abstractmethod
     async def _start_context(self, **launch_args):
         """
         Create a new browser context
         """
-        # if no extensions are present, we can use a regular context
-        browser = await AsyncNewBrowser(
-            self.engine.playwright,
-            geoip=bool(self.proxy),
-            proxy=self.proxy,
-            i_know_what_im_doing=True,
-            **launch_args,
-        )
-
-        # add pointer to the objects list to delete on shutdown
-        self.main_browser = browser
-
-        # create context with human emulation
-        injected_context = await browser.new_context(ignore_https_errors=not self.verify)
-        return injected_context
+        ...
 
 
 class BrowserEngine:
@@ -86,10 +79,14 @@ class BrowserEngine:
     https://github.com/medialab/minet/blob/master/minet/browser/threadsafe_browser.py
     '''
 
-    def __init__(self) -> None:
+    def __init__(self, browser_type: Literal['firefox', 'chrome'] = 'firefox') -> None:
+        assert_browser(browser_type)
+        self.browser_type = browser_type
         self.loop = asyncio.new_event_loop()
         self.start_event = Event()
-        self.thread = Thread(target=self.__thread_worker, name=f"Camoufox-browser-{id(self)}")
+        self.thread = Thread(
+            target=self.__thread_worker, name=f"Hrequests-{browser_type}-{id(self)}"
+        )
 
         self.running_futures: Set[Future] = set()
         self.running_futures_lock = Lock()
@@ -98,7 +95,13 @@ class BrowserEngine:
         self.thread.start()
 
     async def __start_playwright(self):
-        self.playwright = await async_playwright().start()
+        if self.browser_type == 'firefox':
+            self.playwright = await async_playwright().start()
+        elif self.browser_type == 'chrome':
+            self.playwright = await async_patchright().start()
+        else:
+            raise ValueError(f"Invalid browser type: {self.browser_type}")
+
         return self.playwright
 
     async def __stop_playwright(self) -> None:
@@ -213,3 +216,18 @@ class BrowserObjectWrapper:
         if hasattr(result, '__dict__') and hasattr(result, 'close'):
             return BrowserObjectWrapper(result, self._engine)
         return result
+
+
+def assert_browser(browser: Literal['firefox', 'chrome']) -> None:
+    if not BROWSER_SUPPORT:
+        raise MissingLibraryException(
+            'Browsing libraries are not installed. Please run `pip install hrequests[all]`'
+        )
+    if browser == 'firefox' and not find_spec('camoufox'):
+        raise MissingLibraryException(
+            'Camoufox is not installed. Please run `pip install hrequests[firefox]`'
+        )
+    if browser == 'chrome' and not find_spec('patchright'):
+        raise MissingLibraryException(
+            'Patchright is not installed. Please run `pip install hrequests[chrome]`'
+        )
