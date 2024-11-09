@@ -4,10 +4,12 @@ from typing import Tuple, Union
 
 from .engine import AbstractBrowserClient
 
-if find_spec('camoufox'):
+try:
     from camoufox.ip import Proxy as CFProxy
     from camoufox.ip import public_ip
     from camoufox.locale import get_geolocation
+except ImportError:
+    pass
 
 
 class ChromeBrowserClient(AbstractBrowserClient):
@@ -20,10 +22,8 @@ class ChromeBrowserClient(AbstractBrowserClient):
             'humanize'
         ), "`mock_human` is not supported for Chrome browsing. Please use Firefox instead."
         # Remove parameters that hrequests will pass to Camoufox
-        if 'os' in launch_args:
-            launch_args.pop('os')
-        if 'ff_version' in launch_args:
-            launch_args.pop('ff_version')
+        launch_args.pop('os', None)
+        launch_args.pop('version', None)
         try:
             cmd = self.engine.playwright.chromium.launch(**launch_args, proxy=self.proxy)
         except TypeError as exc:
@@ -38,7 +38,7 @@ class ChromeBrowserClient(AbstractBrowserClient):
         self.main_browser = browser
 
         # Handle Patchright geolocation
-        if not self.proxy or not find_spec('camoufox'):
+        if not self.proxy or not find_spec('camoufox.__init__'):
             # Do not use extra geolocation if Camoufox is not installed
             return await browser.new_context(ignore_https_errors=not self.verify, proxy=self.proxy)
 

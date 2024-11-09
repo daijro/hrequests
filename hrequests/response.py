@@ -228,7 +228,7 @@ class Response:
             response=self,
             session=self.session,
             proxy=proxy or self.proxy,
-            ff_version=self.version,
+            version=self.version,
             browser=browser or self.browser,
             **kwargs,
         )

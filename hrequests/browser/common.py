@@ -1,4 +1,3 @@
-import os
 from importlib.util import find_spec
 from typing import Literal
 
@@ -10,21 +9,21 @@ from hrequests.browser.engine import assert_browser
 try:
     from playwright._impl._errors import Error as PlaywrightError
 
-    from .chrome import ChromeBrowserClient
+    from .firefox import FirefoxBrowserClient
 except ModuleNotFoundError:
     pass
 try:
     from patchright._impl._errors import Error as PatchrightError
 
-    from .firefox import FirefoxBrowserClient
+    from .chrome import ChromeBrowserClient
 except ModuleNotFoundError:
     pass
 
 # Get the error message for each
 if BROWSER_SUPPORT:
-    if find_spec('camoufox') and find_spec('patchright'):
+    if find_spec('camoufox.__init__') and find_spec('patchright'):
         ERROR = (PlaywrightError, PatchrightError)
-    elif find_spec('camoufox'):
+    elif find_spec('camoufox.__init__'):
         ERROR = (PlaywrightError,)
     elif find_spec('patchright'):
         ERROR = (PatchrightError,)

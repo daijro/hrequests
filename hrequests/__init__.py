@@ -33,11 +33,9 @@ from .response import ProcessResponse, Response
 from .session import Session, TLSSession, chrome, firefox
 
 # attempt to import headless browsing dependencies
-BROWSER_SUPPORT = str(int(bool(find_spec('camoufox') or find_spec('patchright'))))
-if BROWSER_SUPPORT:
+BROWSER_SUPPORT = str(int(bool(find_spec('camoufox.__init__') or find_spec('patchright'))))
+if BROWSER_SUPPORT == '1':
     from .browser import BrowserEngine, BrowserSession, render
-
-    os.environ['HREQUESTS_PW'] = '1'
 else:
     from rich import print as rprint
 
@@ -45,7 +43,6 @@ else:
         rprint(
             r'[bright_yellow]WARNING: Please run [white]pip install hrequests\[all][/] for automated browsing support.'
         )
-    raise e
 
 from .__version__ import __author__, __version__
 from .parser import HTML

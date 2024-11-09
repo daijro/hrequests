@@ -1,5 +1,4 @@
 from functools import partial
-from os import getenv
 from random import choice as rchoice
 from typing import Dict, Literal, Optional, Tuple, Union
 
@@ -146,9 +145,7 @@ class TLSSession(TLSClient):
             raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
         self.resetHeaders(os=os)
 
-    def render(
-        self, url: str, *args, browser: Optional[Literal['firefox', 'chrome']] = None, **kwargs
-    ):
+    def render(self, url: str, *args, **kwargs):
         """Shortcut to render method"""
         return hrequests.browser.render(
             url,
@@ -156,8 +153,8 @@ class TLSSession(TLSClient):
             **kwargs,
             os=self._os,
             session=self,
-            ff_version=self.version,
-            browser=browser or self.browser,
+            version=self.version,
+            browser=self.browser,
         )
 
     def request(

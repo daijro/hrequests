@@ -7,13 +7,22 @@ from threading import Event, Lock, Thread
 from typing import Callable, Dict, Optional, Set
 
 from async_class import AsyncObject
-from patchright.async_api import async_playwright as async_patchright
-from playwright.async_api import Browser as PWBrowser
-from playwright.async_api import async_playwright
 from typing_extensions import Literal, ParamSpec, TypeVar
 
 from hrequests import BROWSER_SUPPORT
 from hrequests.exceptions import MissingLibraryException
+
+try:
+    from patchright.async_api import async_playwright as async_patchright
+except ImportError:
+    pass
+
+try:
+    from playwright.async_api import Browser as PWBrowser
+    from playwright.async_api import async_playwright
+except ImportError:
+    pass
+
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -223,7 +232,7 @@ def assert_browser(browser: Literal['firefox', 'chrome']) -> None:
         raise MissingLibraryException(
             'Browsing libraries are not installed. Please run `pip install hrequests[all]`'
         )
-    if browser == 'firefox' and not find_spec('camoufox'):
+    if browser == 'firefox' and not find_spec('camoufox.__init__'):
         raise MissingLibraryException(
             'Camoufox is not installed. Please run `pip install hrequests[firefox]`'
         )

@@ -4,19 +4,24 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from functools import total_ordering
+from importlib.util import find_spec
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 import rich_click as click
 from browserforge.download import Download
-from camoufox.__main__ import CamoufoxUpdate
-from camoufox.locale import download_mmdb, remove_mmdb
 from rich import print as rprint
 from rich.panel import Panel
 from rich.status import Status
 
 from hrequests.__version__ import BRIDGE_VERSION, __version__
 from hrequests.cffi import LibraryManager, root_dir
+
+try:
+    from camoufox.__main__ import CamoufoxUpdate
+    from camoufox.locale import download_mmdb, remove_mmdb
+except ImportError:
+    pass
 
 '''
 Hrequests library component manager
@@ -151,32 +156,11 @@ class PatchrightInstall:
         return not self.execute('install')
 
     def uninstall(self) -> bool:
-        rcode: int = self.execute('uninstall')
-        if rcode == 1:
-            rprint(
-                '[yellow]WARNING: On older versions of playwright, the `uninstall` command does not work.\n'
-                f'To manually uninstall, remove the cache from here: {self.browser_binaries()}'
-            )
-        return not rcode
-
-    @staticmethod
-    def browser_binaries() -> str:
-        r'''
-        Return the path to playwright browser binaries based on OS
-
-        %USERPROFILE%\AppData\Local\ms-playwright on Windows
-        ~/Library/Caches/ms-playwright on MacOS
-        ~/.cache/ms-playwright on Linux
-        '''
-        if sys.platform == 'win32':
-            return os.path.expandvars('%USERPROFILE%\\AppData\\Local\\ms-playwright')
-        if sys.platform == 'darwin':
-            return os.path.expanduser('~/Library/Caches/ms-playwright')
-        return os.path.expanduser('~/.cache/ms-playwright')
+        return not self.execute('uninstall')
 
 
-HAS_PATCHRIGHT = 'patchright' in sys.modules
-HAS_CAMOUFOX = 'camoufox' in sys.modules
+HAS_PATCHRIGHT = bool(find_spec('patchright'))
+HAS_CAMOUFOX = bool(find_spec('camoufox.__init__'))
 
 
 def panel_msg(text: str) -> None:
