@@ -1,3 +1,4 @@
+import base64
 import re
 import uuid
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from orjson import dumps, loads
 
 import hrequests
 from hrequests.cffi import library
+from hrequests.proxies import BaseProxy
 
 from .cookies import (
     RequestsCookieJar,
@@ -20,11 +22,6 @@ from .cookies import (
 )
 from .exceptions import ClientException, ProxyFormatException
 from .toolbelt import CaseInsensitiveDict
-
-try:
-    import turbob64 as base64
-except ImportError:
-    import base64
 
 '''
 TLSClient heavily based on https://github.com/FlorianREGAZ/Python-Tls-Client
@@ -50,7 +47,7 @@ class TLSClient:
     force_http1: bool = False
     catch_panics: bool = False
     debug: bool = False
-    proxy: Optional[str] = None
+    proxy: Optional[Union[str, BaseProxy]] = None
     cookies: Optional[RequestsCookieJar] = None
     certificate_pinning: Optional[Dict[str, List[str]]] = None
     disable_ipv6: bool = False
@@ -71,9 +68,6 @@ class TLSClient:
     priority_frames: Optional[list] = None
     header_order: Optional[List[str]] = None
     header_priority: Optional[List[str]] = None
-
-    # backwards compatibility
-    proxies: Optional[Dict[str, str]] = None
 
     '''
     Synopsis:
@@ -250,13 +244,7 @@ class TLSClient:
     '''
 
     def __post_init__(self) -> None:
-        self._session_id: str = str(uuid.uuid4())
-
-        self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
-        # set first item of proxies to self.proxy (backwards compatibility)
-        if self.proxies:
-            self.proxy = self.unpack_proxy(self.proxies)
-            del self.proxies
+        self.id: str = str(uuid.uuid4())
 
         # http client for local go server
         self.server: HTTPClient = HTTPClient(
@@ -274,7 +262,7 @@ class TLSClient:
     def close(self):
         if not self._closed:
             self._closed = True
-            library.destroy_session(self._session_id)
+            library.destroy_session(self.id)
             self.server.close()
 
     def __enter__(self):
@@ -285,14 +273,6 @@ class TLSClient:
 
     def __del__(self):
         self.close()
-
-    @staticmethod
-    def unpack_proxy(proxies: Dict[str, str]) -> str:
-        # unpack the proxy dict to a single string
-        key, value = next(iter(proxies.items()))
-        if key not in SUPPORTED_PROXIES:
-            raise ProxyFormatException(f'Proxy must be of the following type: {SUPPORTED_PROXIES}')
-        return value
 
     def build_request(
         self,
@@ -306,7 +286,7 @@ class TLSClient:
         history: bool = True,
         verify: Optional[bool] = None,
         timeout: Optional[float] = None,
-        proxy: Optional[Union[str, dict]] = None,
+        proxy: Optional[Union[str, BaseProxy]] = None,
     ):
         # Prepare request body - build request body
         # Data has priority. JSON is only used if data is None.
@@ -353,13 +333,15 @@ class TLSClient:
 
         # Proxy
         proxy = proxy or self.proxy
+        if isinstance(proxy, BaseProxy):
+            proxy = str(proxy)
         if proxy:
             verify_proxy(proxy)
 
         # Request
         is_byte_request = isinstance(request_body, (bytes, bytearray))
         request_payload = {
-            'sessionId': self._session_id,
+            'sessionId': self.id,
             'followRedirects': allow_redirects,
             'wantHistory': history,
             'forceHttp1': self.force_http1,

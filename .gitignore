@@ -170,3 +170,11 @@ cython_debug/
 
 .vscode
 .trunk
+# Testing/old files
+_old/
+test*.py
+
+# Binaries
+*.exe
+*.dll~
+bin/

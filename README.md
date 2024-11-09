@@ -9,7 +9,7 @@
         <img src="https://img.shields.io/github/license/daijro/hrequests.svg">
     </a>
     <a href="https://python.org/">
-        <img src="https://img.shields.io/badge/python-3.8&#8208;3.12-blue">
+        <img src="https://img.shields.io/badge/python-3.8&#8208;3.13-blue">
     </a>
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
@@ -35,28 +35,45 @@
 - Replication of browser TLS fingerprints 🚀
 - JavaScript rendering 🚀
 - Supports HTTP/2 🚀
-- Realistic browser header generation 🚀
+- Realistic browser header generation using [BrowserForge](https://github.com/daijro/browserforge) 🚀
 - JSON serializing up to 10x faster than the standard library 🚀
 
 ### 💻 Browser crawling
 
 - Simple & uncomplicated browser automation
+- Anti-detect browsing using [Camoufox](https://camoufox.com) and [Patchright](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright) (**new in v0.9.0!**)
 - Human-like cursor movement and typing
-- Chrome and Firefox extension support
 - Full page screenshots
 - Proxy support
 - Headless and headful support
 - No CORS restrictions
-- Anti-detect browsing based on [Vinyzu's](https://github.com/Vinyzu) [Botright](https://github.com/Vinyzu/botright/)
 
 ### ⚡ More
 
 - High performance ✨
-- Minimal dependence on the python standard libraries
 - HTTP backend written in Go
 - Automatic gzip & brotli decode
 - Written with type safety
 - 100% threadsafe ❤️
+
+---
+
+### 🏠 Residential Proxy Rotation
+
+Hrequests includes built-in proxy rotation powered by [Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests). 🚀
+
+[Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests) is a high quality Swiss proxy provider, with residential proxies avaliable in 150+ countries starting at $2.2/GB. For more information on using Evomi in hrequests, see the [Evomi proxy guide](#evomi-proxies).
+
+- 👩‍💻 **24/7 Expert Support**: Evomi will join your Slack Channel
+- 🌍 **Global Presence**: Available in 150+ Countries
+- ⚡ **Low Latency**
+- 🔒 **Swiss Quality & Privacy**
+- 🎁 **Free Trial**
+- 🛡️ **99.9% Uptime**
+- 🤝 **Special IP Pool selection**: Optimize for fast, quality, or quantity of IPs
+- 🔧 **Easy Integration**: Compatible with most software and programming languages
+
+[![Evomi Banner](https://my.evomi.com/images/brand/cta.png)](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests)
 
 ---
 
@@ -86,11 +103,12 @@ pip install -U hrequests
 
 **For the latest stable hrequests documentation, check the [Gitbook page](https://daijro.gitbook.io/hrequests/).**
 
-1. [Simple Usage](https://github.com/daijro/hrequests#simple-usage)
-2. [Sessions](https://github.com/daijro/hrequests#sessions)
-3. [Concurrent & Lazy Requests](https://github.com/daijro/hrequests#concurrent--lazy-requests)
-4. [HTML Parsing](https://github.com/daijro/hrequests#html-parsing)
-5. [Browser Automation](https://github.com/daijro/hrequests#browser-automation)
+1. [Simple Usage](#simple-usage)
+2. [Sessions](#sessions)
+3. [Concurrent & Lazy Requests](#concurrent--lazy-requests)
+4. [HTML Parsing](#html-parsing)
+5. [Browser Automation](#browser-automation)
+6. [Evomi Proxies](#evomi-proxies)
 
 <hr width=50>
 
@@ -199,11 +217,11 @@ Get the response headers:
 
 ## Sessions
 
-Creating a new Chrome Session object:
+Creating a new Firefox Session object:
 
 ```py
 >>> session = hrequests.Session()  # version randomized by default
->>> session = hrequests.Session('chrome', version=120)
+>>> session = hrequests.Session('firefox', version=129)
 ```
 
 <details>
@@ -359,7 +377,7 @@ Note: In `nohup`, a new thread is created for each request. For larger scale con
 
 ### Easy Concurrency
 
-You can pass an array/iterator of links to the request methods to send them concurrently. This wraps around [`hrequests.map`](https://github.com/daijro/hrequests#map):
+You can pass an array/iterator of links to the request methods to send them concurrently. This wraps around [`hrequests.map`](#map):
 
 ```py
 >>> hrequests.get(['https://google.com/', 'https://github.com/'])
@@ -666,18 +684,10 @@ Search for links within an element:
 
 ## Browser Automation
 
-Hrequests supports both Firefox and Chrome browsers, headless and headful sessions, and browser addons/extensions:
+Hrequests supports both Firefox and Chrome browsers, headless and headful sessions:
 
-#### Browser support table
-
-Chrome supports both Manifest v2/v3 extensions. Firefox only supports Manifest v2 extensions.
-
-Only Firefox supports CloudFlare WAFs.
-
-| Browser | MV2                | MV3                | Cloudfare WAFs     |
-| ------- | ------------------ | ------------------ | ------------------ |
-| Firefox | :heavy_check_mark: | :x:                | :heavy_check_mark: |
-| Chrome  | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+> [!WARNING]
+> It is recommended to use Firefox instead. Chrome does not support fingerprint rotation, mocking human mouse movements, or browser extensions.
 
 ### Usage
 
@@ -692,27 +702,45 @@ You can spawn a `BrowserSession` instance by calling it:
 
 ```
 Parameters:
-    headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
     session (hrequests.session.TLSSession, optional): Session to use for headers, cookies, etc.
     resp (hrequests.response.Response, optional): Response to update with cookies, headers, etc.
-    proxy (str, optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
+    proxy (Union[str, BaseProxy], optional): Proxy to use for the browser. Example: http://1.2.3.4:8080
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
-    browser (Literal['firefox', 'chrome'], optional): Generate useragent headers for a specific browser
+    engine (BrowserEngine, optional): Pass in an existing BrowserEngine instead of creating a new one
+    verify (bool, optional): Whether to verify https requests
+    headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
-    extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
+    **kwargs: Additional arguments to pass to Playwright (or Camoufox parameters if using Firefox)
 ```
 
 </details>
 
-By default, `BrowserSession` returns a Chrome browser.
+`BrowserSession` is entirely safe to use across threads.
 
-To create a Firefox session, use the chrome shortcut instead:
+#### Camoufox Integration
+
+If you are using a Firefox BrowserSession, you can pass additional parameters to Camoufox by using the `**kwargs` parameter:
 
 ```py
->>> page = hrequests.firefox.BrowserSession()
+>>> page = hrequests.BrowserSession(window=(1024, 768), block_images=True, addons=['/path/to/addon'], ...)
 ```
 
-`BrowserSession` is entirely safe to use across threads.
+You can find a full list of parameters for Camoufox [here](https://camoufox.com/python/usage).
+
+#### Engine
+
+The `engine` parameter allows you to pass in an existing `BrowserEngine` instance. This can be useful if you want to reuse a Playwright engine to save time on startup. It is completely threadsafe.
+
+```python
+>>> engine = hrequests.BrowserEngine()
+```
+
+Use the same engine for multiple sessions
+
+```python
+>>> page1 = hrequests.BrowserSession(engine=engine)
+>>> page2 = hrequests.BrowserSession(engine=engine)
+```
 
 ### Render an existing Response
 
@@ -727,20 +755,20 @@ Rendered browser sessions will use the browser set in the initial request.
 You can set a request's browser with the `browser` parameter in the `hrequests.get` method:
 
 ```py
->>> resp = hrequests.get('https://example.com', browser='chrome')
+>>> resp = hrequests.get('https://example.com')
 ```
 
 Or by setting the `browser` parameter of the `hrequests.Session` object:
 
 ```py
->>> session = hrequests.Session(browser='chrome')
+>>> session = hrequests.Session()
 >>> resp = session.get('https://example.com')
 ```
 
 **Example - submitting a login form:**
 
 ```py
->>> session = hrequests.Session(browser='chrome')
+>>> session = hrequests.Session()
 >>> resp = session.get('https://www.somewebsite.com/')
 >>> with resp.render(mock_human=True) as page:
 ...     page.type('.input#username', 'myuser')
@@ -752,7 +780,7 @@ Or by setting the `browser` parameter of the `hrequests.Session` object:
 <summary><strong>Or, without a context manager</strong></summary>
 
 ```py
->>> session = hrequests.Session(browser='chrome')
+>>> session = hrequests.Session()
 >>> resp = session.get('https://www.somewebsite.com/')
 >>> page = resp.render(mock_human=True)
 >>> page.type('.input#username', 'myuser')
@@ -763,7 +791,7 @@ Or by setting the `browser` parameter of the `hrequests.Session` object:
 
 </details>
 
-The `mock_human` parameter will emulate human-like behavior. This includes easing and randomizing mouse movements, and randomizing typing speed. This functionality is based on [botright](https://github.com/Vinyzu/botright/).
+The `mock_human` parameter will emulate human-like behavior. This includes easing and randomizing mouse movements, and randomizing typing speed. This functionality is based on [Botright](https://github.com/Vinyzu/botright/).
 
 <details>
 <summary>Parameters</summary>
@@ -773,6 +801,8 @@ Parameters:
     headless (bool, optional): Whether to run the browser in headless mode. Defaults to False.
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
     extensions (Union[str, Iterable[str]], optional): Path to a folder of unpacked extensions, or a list of paths to unpacked extensions
+    engine (BrowserEngine, optional): Pass in an existing BrowserEngine instead of creating a new one
+    **kwargs: Additional arguments to pass to Camoufox (see https://camoufox.com/python/usage)
 ```
 
 </details>
@@ -1117,38 +1147,25 @@ Returns:
 
 </details>
 
-### Adding Firefox/Chrome extensions
+### Adding Firefox extensions
 
-Firefox/Chrome extensions can be easily imported into a browser session. Some potentially useful extensions include:
+Firefox extensions can be easily imported into a browser session. Some potentially useful extensions include:
 
-- **hektCaptcha** - Hcaptcha solver ([Chrome](https://github.com/Wikidepia/hektCaptcha-extension))
+- **uBlock Origin** - Ad & popup blocker (Automatically installed)
 
-- **uBlock Origin** - Ad & popup blocker ([Chrome](https://github.com/gorhill/uBlock), [Firefox](https://github.com/gorhill/uBlock))
+- **hektCaptcha** - Hcaptcha solver ([Download](https://github.com/Wikidepia/hektCaptcha-extension))
 
-- **FastForward** - Bypass & skip link redirects ([Chrome](https://nightly.link/FastForwardTeam/FastForward/workflows/main/main/FastForward_chromium.zip), [Firefox](https://nightly.link/FastForwardTeam/FastForward/workflows/main/main/FastForward_firefox.zip))
+- **FastForward** - Bypass & skip link redirects ([Download](https://nightly.link/FastForwardTeam/FastForward/workflows/main/main/FastForward_firefox.zip))
 
-Note: Firefox extensions are _Firefox-only_, and Chrome extensions are _Chrome-only_.
-
-If you plan on using Firefox-specific or Chrome-specific extensions, make sure to set your `browser` parameter to the correct browser before rendering the page:
-
-```py
-# when dealing with captchas, make sure to use firefox
->>> resp = hrequests.get('https://accounts.hcaptcha.com/demo', browser='firefox')
-```
+**Note:** Hrequests only supports Firefox extensions.
 
 Extensions are added with the `extensions` parameter:
 
 - This can be an list of absolute paths to unpacked extensions:
 
   ```py
-  with resp.render(extensions=['C:\\extensions\\hektcaptcha', 'C:\\extensions\\ublockorigin']):
+  with resp.render(extensions=['C:\\extensions\\hektcaptcha', 'C:\\extensions\\fastforward']):
   ```
-
-- Or a folder containing the unpacked extensions:
-  ```py
-  with resp.render(extensions='C:\\extentions'):
-  ```
-  Note that these need to be _unpacked_ extensions. You can unpack a `.crx` file by changing the file extension to `.zip` and extracting the contents.
 
 Here is an usage example of using a captcha solver:
 
@@ -1238,21 +1255,221 @@ Make sure to close all `BrowserSession` objects when done!
 >>> page.close()
 ```
 
+<hr width=50>
+
+## Evomi Proxies
+
+Hrequests has a built in residential proxy rotation service powered by [Evomi](https://evomi.com/).
+
+### Creating a proxy
+
+Import the `evomi` module:
+
+```py
+>>> from hrequests.proxies import evomi
+>>> proxy = evomi.ResidentialProxy(username='daijro', key='password')
+```
+
+### Usage
+
+Pass proxies into requests:
+
+```
+>>> resp = hrequests.get('https://example.com', proxy=proxy)
+```
+
+Use Evomi proxies with a `Session`:
+
+```python
+# Add the proxy to the session
+>>> session = hrequests.Session(proxy=proxy)
+# All requests made with this session will use the proxy.
+>>> resp = session.get('https://example.com')
+>>> with resp.render() as page:
+...     # Page is rendered with the proxy.
+...     ...
+```
+
+Use Evomi proxies with a `BrowserSession`:
+
+```python
+>>> page = hrequests.BrowserSession(proxy=proxy)
+>>> page.goto('https://example.com')
+```
+
+### Proxy Types
+
+You can create either a residential, mobile, or datacenter proxy:
+
+#### Residential
+
+```py
+>>> proxy = evomi.ResidentialProxy(username='daijro', key='password')
+```
+
+<details>
+<summary>ResidentialProxy Parameters</summary>
+
+```
+Initialize a new Evomi Residential proxy.
+
+Parameters:
+    username (str): Your Evomi username
+    key (str): Your Evomi API key
+    country (str, optional): Target country code (e.g., 'US', 'GB')
+    region (str, optional): Target region/state
+    city (str, optional): Target city name
+    continent (str, optional): Target continent name
+    isp (str, optional): Target ISP
+    pool (Literal["standard", "speed", "quality"], optional): Proxy pool type
+    session_type (Literal["session", "hardsession"]): Session persistence type
+        * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+        * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+        Defaults to "session".
+    auto_rotate (bool): Whether to automatically rotate IPs between requests.
+        Cannot be used with `session_type`.
+    lifetime (int, optional): Duration of the session in minutes (1-120)
+        Only works with `session_type="session"`. Defaults to 40 if not specified.
+    adblock (bool): Whether to enable ad blocking. Defaults to False.
+```
+
+</details>
+
+#### Mobile
+
+```py
+>>> proxy = evomi.MobileProxy(username='daijro', key='password')
+```
+
+<details>
+<summary>MobileProxy Parameters</summary>
+
+```
+Initialize a new Evomi Mobile proxy.
+
+Parameters:
+    username (str): Your Evomi username
+    key (str): Your Evomi API key
+    country (str, optional): Target country code (e.g., 'US', 'GB')
+    continent (str, optional): Target continent name
+    isp (str, optional): Target ISP
+    session_type (Literal["session", "hardsession"]): Session persistence type
+        * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+        * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+        Defaults to "session".
+    auto_rotate (bool): Whether to automatically rotate IPs between requests.
+        Cannot be used with `session_type`.
+    lifetime (int, optional): Duration of the session in minutes (1-120)
+        Only works with `session_type="session"`. Defaults to 40 if not specified.
+```
+
+</details>
+
+#### Datacenter
+
+```py
+>>> proxy = evomi.DatacenterProxy(username='daijro', key='password')
+```
+
+<details>
+<summary>DatacenterProxy Parameters</summary>
+
+```
+Initialize a new Evomi Datacenter proxy.
+
+Parameters:
+    username (str): Your Evomi username
+    key (str): Your Evomi API key
+    country (str, optional): Target country code (e.g., 'US', 'GB')
+    continent (str, optional): Target continent name
+    session_type (Literal["session", "hardsession"]): Session persistence type
+        * "session": Optimized for success rate, may change IP for stability. Works with lifetime parameter.
+        * "hardsession": Maintains same IP for as long as possible. Cannot use lifetime parameter.
+        Defaults to "session".
+    auto_rotate (bool): Whether to automatically rotate IPs between requests.
+        Cannot be used with `session_type`.
+    lifetime (int, optional): Duration of the session in minutes (1-120)
+        Only works with `session_type="session"`. Defaults to 40 if not specified.
+```
+
+</details>
+
+### Parameter Table
+
+| Parameter      | Description                                           | Residential | Mobile | Datacenter |
+| -------------- | ----------------------------------------------------- | ----------- | ------ | ---------- |
+| `continent`    | Continent name                                        | ✔️          | ✔️     | ✔️         |
+| `country`      | Country code                                          | ✔️          | ✔️     | ✔️         |
+| `region`       | Region, state, province, or territory                 | ✔️          | ✔️     |
+| `city`         | City name                                             | ✔️          |        |
+| `isp`          | ISP name                                              | ✔️          | ✔️     |
+| `pool`         | Proxy pool. Takes standard, speed, or quality.        | ✔️          |        |
+| `session_type` | Session persistence type                              | ✔️          | ✔️     | ✔️         |
+| `auto_rotate`  | Whether to automatically rotate IPs between requests. | ✔️          | ✔️     | ✔️         |
+| `lifetime`     | Duration of the session in minutes (1-120)            | ✔️          | ✔️     | ✔️         |
+| `adblock`      | Whether to enable ad blocking                         | ✔️          |        |
+
+### Geo-targetting
+
+Specify the geographic location of the proxy:
+
+#### Continent
+
+Possible options are `Africa`, `Asia`, `Europe`, `Oceania`, `North America`, and `South America`.
+
+```py
+>>> proxy = evomi.ResidentialProxy(continent='North America', ...)
+```
+
+#### Country
+
+Target a specific country. Takes two-letter country codes.
+
+```py
+>>> proxy = evomi.ResidentialProxy(country='US', ...)  # United States
+>>> proxy = evomi.ResidentialProxy(country='CA', ...)  # Canada
+```
+
+#### City
+
+Target a specific city. Residential proxies only.
+
+```py
+>>> proxy = evomi.ResidentialProxy(city='New York', ...)
+>>> proxy = evomi.ResidentialProxy(city='Tokyo', ...)
+```
+
+#### Region
+
+Target a specific state, province, or territory. Residential and Mobile proxies only.
+
+```py
+>>> proxy = evomi.ResidentialProxy(region='California', ...)
+>>> proxy = evomi.ResidentialProxy(region='Southern Cape', ...)
+```
+
 ---
 
 ## Thanks
 
 This project includes code adapted from the following sources:
 
-- **Botright**
-
-  - Author: Vinyzu
-  - Repository: https://github.com/Vinyzu/Botright
-  - License: GNU General Public License v3.0
-  - Used for [`playwright_mock`](https://github.com/daijro/hrequests/tree/main/hrequests/playwright_mock) submodule
-
 - **tls-client**
+
   - Author: bogdanfinn
   - Repository: https://github.com/bogdanfinn/tls-client
   - License: BSD-4-Clause license
   - Used in [bridge/server.go](https://github.com/daijro/hrequests/blob/main/bridge/server.go)
+
+- **Minet**
+
+  - Author: medialab
+  - Repository: https://github.com/medialab/minet
+  - License: GPL-3.0
+  - Inspired the threadsafe implementation of Playwright
+
+- **Patchright**
+  - Author: Vinyzu and Kaliiiiiiiiii
+  - Repository: https://github.com/Kaliiiiiiiiii-Vinyzu/patchright
+  - License: Apache License 2.0
+  - Used for Chrome browser support

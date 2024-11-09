@@ -28,3 +28,7 @@ class SelectorNotFoundException(Exception):
 
 class ProxyFormatException(ClientException):
     '''Exception raised when a proxy format is not supported'''
+
+
+class MissingLibraryException(ClientException):
+    '''Exception raised when the browsing libraries are not installed'''

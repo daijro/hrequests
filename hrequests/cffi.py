@@ -6,6 +6,7 @@ from sys import platform
 from typing import Optional, Tuple
 
 import rich.progress
+from geventhttpclient import HTTPClient
 from httpx import get, stream
 from orjson import loads
 
