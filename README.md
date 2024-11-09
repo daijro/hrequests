@@ -708,13 +708,24 @@ Parameters:
     mock_human (bool, optional): Whether to emulate human behavior. Defaults to False.
     engine (BrowserEngine, optional): Pass in an existing BrowserEngine instead of creating a new one
     verify (bool, optional): Whether to verify https requests
+    headless (bool, optional): Whether to run the browser in headless mode. Defaults to True.
     os (Literal['win', 'mac', 'lin'], optional): Generate headers for a specific OS
-    **kwargs: Additional arguments to pass to Camoufox (see https://camoufox.com/python/usage)
+    **kwargs: Additional arguments to pass to Playwright (or Camoufox parameters if using Firefox)
 ```
 
 </details>
 
 `BrowserSession` is entirely safe to use across threads.
+
+#### Camoufox Integration
+
+If you are using a Firefox BrowserSession, you can pass additional parameters to Camoufox by using the `**kwargs` parameter:
+
+```py
+>>> page = hrequests.BrowserSession(window=(1024, 768), block_images=True, addons=['/path/to/addon'], ...)
+```
+
+You can find a full list of parameters for Camoufox [here](https://camoufox.com/python/usage).
 
 #### Engine
 
@@ -1444,12 +1455,14 @@ Target a specific state, province, or territory. Residential and Mobile proxies 
 This project includes code adapted from the following sources:
 
 - **tls-client**
+
   - Author: bogdanfinn
   - Repository: https://github.com/bogdanfinn/tls-client
   - License: BSD-4-Clause license
   - Used in [bridge/server.go](https://github.com/daijro/hrequests/blob/main/bridge/server.go)
 
 - **Minet**
+
   - Author: medialab
   - Repository: https://github.com/medialab/minet
   - License: GPL-3.0
