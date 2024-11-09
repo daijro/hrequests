@@ -146,15 +146,18 @@ class TLSSession(TLSClient):
             raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
         self.resetHeaders(os=os)
 
-    def render(self, *args, **kwargs):
+    def render(
+        self, url: str, *args, browser: Optional[Literal['firefox', 'chrome']] = None, **kwargs
+    ):
         """Shortcut to render method"""
         return hrequests.browser.render(
+            url,
             *args,
             **kwargs,
             os=self._os,
             session=self,
             ff_version=self.version,
-            browser_type='firefox',
+            browser=browser or self.browser,
         )
 
     def request(

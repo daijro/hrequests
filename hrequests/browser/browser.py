@@ -75,21 +75,21 @@ class BrowserSession:
         extensions: Optional[List[str]] = None,
         os: Optional[Literal['win', 'mac', 'lin']] = None,
         engine: Optional['BrowserEngine'] = None,
-        browser_type: Literal['firefox', 'chrome'] = 'firefox',
+        browser: Literal['firefox', 'chrome'] = 'firefox',
         verify: bool = True,
         **launch_options,
     ) -> None:
         # Remember session and resp to clone cookies back to when closing
         self.session: Optional[hrequests.session.TLSSession] = session
         self.resp: Optional[hrequests.response.Response] = resp
-        self.browser_type: Literal['firefox', 'chrome'] = browser_type
+        self.browser: Literal['firefox', 'chrome'] = browser
 
         # Set the engine, or create one if not provided
         if engine:
             self.engine = engine
             self.temp_engine = False
         else:
-            self.engine = BrowserEngine(browser_type=browser_type)
+            self.engine = BrowserEngine(browser_type=browser)
             self.temp_engine = True
 
         if isinstance(proxy, BaseProxy):
@@ -127,7 +127,7 @@ class BrowserSession:
     async def __start(self) -> None:
         # Build the playwright instance
         self.client = await browser_client(
-            browser_type=self.browser_type,
+            browser_type=self.browser,
             engine=self.engine,
             proxy=self.proxy.to_playwright() if self.proxy else None,
             verify=self.verify,
@@ -599,11 +599,12 @@ class BrowserSession:
 
 def render(
     url: Optional[str] = None,
+    *,
     headless: bool = True,
     proxy: Optional[Union[str, BaseProxy]] = None,
     response: Optional[hrequests.response.Response] = None,
     session: Optional[hrequests.session.TLSSession] = None,
-    browser_type: Literal['firefox', 'chrome'] = 'firefox',
+    browser: Literal['firefox', 'chrome'] = 'firefox',
     **kwargs,
 ):
     assert any(
@@ -615,7 +616,7 @@ def render(
         resp=response,
         proxy=proxy,
         headless=headless,
-        browser_type=browser_type,
+        browser=browser,
         **kwargs,
     )
     # include headers from session if a TLSSession is provided

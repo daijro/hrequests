@@ -218,7 +218,9 @@ class Response:
 
     def render(
         self,
+        *,
         proxy: Optional[Union[str, BaseProxy]] = None,
+        browser: Optional[Literal['firefox', 'chrome']] = None,
         **kwargs,
     ) -> 'hrequests.browser.BrowserSession':
         return hrequests.browser.render(
@@ -227,7 +229,7 @@ class Response:
             session=self.session,
             proxy=proxy or self.proxy,
             ff_version=self.version,
-            browser_type=self.browser,
+            browser=browser or self.browser,
             **kwargs,
         )
 

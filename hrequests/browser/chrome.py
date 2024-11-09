@@ -19,8 +19,11 @@ class ChromeBrowserClient(AbstractBrowserClient):
         assert not launch_args.pop(
             'humanize'
         ), "`mock_human` is not supported for Chrome browsing. Please use Firefox instead."
-        launch_args.pop('os')
-        launch_args.pop('ff_version')
+        # Remove parameters that hrequests will pass to Camoufox
+        if 'os' in launch_args:
+            launch_args.pop('os')
+        if 'ff_version' in launch_args:
+            launch_args.pop('ff_version')
         try:
             cmd = self.engine.playwright.chromium.launch(**launch_args, proxy=self.proxy)
         except TypeError as exc:
