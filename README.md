@@ -14,8 +14,11 @@
     <a href="https://pypi.org/project/hrequests/">
         <img alt="PyPI" src="https://img.shields.io/pypi/v/hrequests.svg">
     </a>
+    <a href="https://github.com/daijro/hrequests/releases">
+        <img alt="downloads" src="https://img.shields.io/github/downloads/daijro/hrequests/total.svg?label=downloads">
+    </a>
     <a href="https://pepy.tech/project/hrequests">
-        <img alt="PyPI" src="https://static.pepy.tech/badge/hrequests">
+        <img alt="PyPI" src="https://img.shields.io/pepy/dt/hrequests?label=pypi installs&color=blue">
     </a>
     <a href="https://github.com/ambv/black">
         <img src="https://img.shields.io/badge/code%20style-black-black.svg">
@@ -58,11 +61,11 @@
 
 ---
 
-### 🏠 Residential Proxy Rotation
+### 🏠 Residential Proxy Rotation ($0.49 per GB)
 
 Hrequests includes built-in proxy rotation powered by [Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests). 🚀
 
-[Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests) is a high quality Swiss proxy provider, with residential proxies avaliable in 150+ countries starting at $2.2/GB. For more information on using Evomi in hrequests, see the [Evomi proxy guide](#evomi-proxies).
+[Evomi](https://evomi.com?utm_source=github&utm_medium=banner&utm_campaign=daijro-hrequests) is a high quality Swiss proxy provider, with residential proxies avaliable in 150+ countries starting at $0.49/GB. For more information on using Evomi in hrequests, see the [Evomi proxy guide](#evomi-proxies).
 
 - 👩‍💻 **24/7 Expert Support**: Evomi will join your Slack Channel
 - 🌍 **Global Presence**: Available in 150+ Countries
