@@ -38,7 +38,7 @@ class ChromeBrowserClient(AbstractBrowserClient):
         self.main_browser = browser
 
         # Handle Patchright geolocation
-        if not self.proxy or not find_spec('camoufox.__init__'):
+        if not self.proxy or not find_spec('camoufox'):
             # Do not use extra geolocation if Camoufox is not installed
             return await browser.new_context(ignore_https_errors=not self.verify, proxy=self.proxy)
 

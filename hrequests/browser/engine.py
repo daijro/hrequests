@@ -232,7 +232,7 @@ def assert_browser(browser: Literal['firefox', 'chrome']) -> None:
         raise MissingLibraryException(
             'Browsing libraries are not installed. Please run `pip install hrequests[all]`'
         )
-    if browser == 'firefox' and not find_spec('camoufox.__init__'):
+    if browser == 'firefox' and not find_spec('camoufox'):
         raise MissingLibraryException(
             'Camoufox is not installed. Please run `pip install hrequests[firefox]`'
         )

@@ -101,7 +101,7 @@ class LibraryUpdate(LibraryManager):
 
         rprint(
             f'[bright_green]:sparkles: Successfully installed hrequests-cgo v{ver}! :tada:[/]'
-            '\nSee the documentation to get started: https://daijro.gitbook.io/hrequests\n'
+            '\nSee the documentation to get started: https://daijro.gitbook.io/hrequests'
         )
 
     def update(self) -> None:
@@ -160,7 +160,7 @@ class PatchrightInstall:
 
 
 HAS_PATCHRIGHT = bool(find_spec('patchright'))
-HAS_CAMOUFOX = bool(find_spec('camoufox.__init__'))
+HAS_CAMOUFOX = bool(find_spec('camoufox'))
 
 
 def panel_msg(text: str) -> None:
@@ -230,7 +230,6 @@ def uninstall(camoufox: bool, patchright: bool) -> None:
     # remove old files
     if not (path and os.path.exists(path)):
         rprint('[bright_yellow]Library components not found.')
-        return
     else:
         try:
             os.remove(path)
@@ -258,6 +257,8 @@ def uninstall(camoufox: bool, patchright: bool) -> None:
                 rprint('[red]Patchright Chrome not found!')
         else:
             rprint('[bright_yellow]Patchright is not installed.')
+
+    rprint('[bright_green]Complete! :tada:')
 
 
 @cli.command(name='version')

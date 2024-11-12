@@ -33,7 +33,7 @@ from .response import ProcessResponse, Response
 from .session import Session, TLSSession, chrome, firefox
 
 # attempt to import headless browsing dependencies
-BROWSER_SUPPORT = str(int(bool(find_spec('camoufox.__init__') or find_spec('patchright'))))
+BROWSER_SUPPORT = str(int(bool(find_spec('camoufox') or find_spec('patchright'))))
 if BROWSER_SUPPORT == '1':
     from .browser import BrowserEngine, BrowserSession, render
 else:

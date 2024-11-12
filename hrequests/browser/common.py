@@ -21,9 +21,9 @@ except ModuleNotFoundError:
 
 # Get the error message for each
 if BROWSER_SUPPORT:
-    if find_spec('camoufox.__init__') and find_spec('patchright'):
+    if find_spec('camoufox') and find_spec('patchright'):
         ERROR = (PlaywrightError, PatchrightError)
-    elif find_spec('camoufox.__init__'):
+    elif find_spec('camoufox'):
         ERROR = (PlaywrightError,)
     elif find_spec('patchright'):
         ERROR = (PatchrightError,)
