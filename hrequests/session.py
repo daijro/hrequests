@@ -145,7 +145,7 @@ class TLSSession(TLSClient):
             raise ValueError(f'`{os}` is not a valid OS: (win, mac, lin)')
         self.resetHeaders(os=os)
 
-    def render(self, url: str, *args, **kwargs):
+    def render(self, url: str, proxy: Optional[Union[str, BaseProxy]] = None, *args, **kwargs):
         """Shortcut to render method"""
         return hrequests.browser.render(
             url,
@@ -155,6 +155,7 @@ class TLSSession(TLSClient):
             session=self,
             version=self.version,
             browser=self.browser,
+            proxy=proxy or self.proxy,
         )
 
     def request(

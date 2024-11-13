@@ -24,6 +24,7 @@ class ChromeBrowserClient(AbstractBrowserClient):
         # Remove parameters that hrequests will pass to Camoufox
         launch_args.pop('os', None)
         launch_args.pop('version', None)
+        launch_args.pop('enable_cache', None)
         try:
             cmd = self.engine.playwright.chromium.launch(**launch_args, proxy=self.proxy)
         except TypeError as exc:

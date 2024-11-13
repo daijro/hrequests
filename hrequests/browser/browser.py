@@ -7,7 +7,7 @@ import hrequests
 from hrequests.browser.proxy import Proxy
 from hrequests.client import CaseInsensitiveDict
 from hrequests.cookies import RequestsCookieJar, cookiejar_to_list, list_to_cookiejar
-from hrequests.exceptions import JavascriptException
+from hrequests.exceptions import CacheDisabledError, JavascriptException
 from hrequests.proxies import BaseProxy
 from hrequests.response import Response
 from hrequests.session import OS_MAP
@@ -98,6 +98,7 @@ class BrowserSession:
         self.proxy: Optional[Proxy] = Proxy.from_url(proxy) if proxy else None
         self.verify: bool = verify
         self.os: Literal['win', 'mac', 'lin'] = os
+        self._headers: Optional[dict] = None
 
         # Browser config
         self.status_code: Optional[int]
@@ -117,6 +118,8 @@ class BrowserSession:
         # Handle mock_human
         self.mock_human: bool = mock_human
         self.launch_options['humanize'] = mock_human
+        # Use cache by default
+        self.launch_options['enable_cache'] = self.launch_options.get('enable_cache', True)
 
         # Start the browser
         self.start()
@@ -165,10 +168,16 @@ class BrowserSession:
 
     def forward(self):
         '''Navigate to the next page in history'''
+        if self.browser == 'firefox' and not self.launch_options['enable_cache']:
+            raise CacheDisabledError('When `enable_cache` is False, you cannot go back or forward.')
+
         return self.page.go_forward()
 
     def back(self):
         '''Navigate to the previous page in history'''
+        if self.browser == 'firefox' and not self.launch_options['enable_cache']:
+            raise CacheDisabledError('When `enable_cache` is False, you cannot go back or forward.')
+
         return self.page.go_back()
 
     def awaitNavigation(self, timeout: float = 30):
@@ -366,7 +375,7 @@ class BrowserSession:
         Returns:
             Optional[bytes]: Returns the screenshot buffer, if `path` was not provided
         '''
-        assert not (bool(selector) ^ full_page), 'Must provide either `selector` or `full_page`'
+        assert bool(selector) ^ full_page, 'Must provide either `selector` or `full_page`'
         if selector:
             locator: BrowserObjectWrapper = BrowserObjectWrapper(
                 self.page.locator(selector), self.engine
@@ -405,10 +414,15 @@ class BrowserSession:
     @property
     def headers(self) -> CaseInsensitiveDict:
         '''Get the page headers'''
-        return CaseInsensitiveDict({'User-Agent': self.ua})
+        if self._headers:
+            return CaseInsensitiveDict(self._headers)
+
+        # Extract User-Agent
+        ua = self.evaluate('navigator.userAgent')
+        return CaseInsensitiveDict({'User-Agent': ua})
 
     @headers.setter
-    def headers(self, headers: dict):
+    def headers(self, headers: Union[dict, CaseInsensitiveDict]):
         '''Set headers'''
         self.setHeaders(headers)
 
@@ -557,13 +571,12 @@ class BrowserSession:
         Parameters:
             headers (Union[dict, CaseInsensitiveDict]): Headers to set
         '''
-        self.context.set_extra_http_headers(
-            {
-                **headers,
-                # convert lists to comma separated
-                **{k: ', '.join(v) for k, v in headers.items() if isinstance(v, list)},
-            }
-        )
+        self._headers = {
+            **headers,
+            # convert lists to comma separated
+            **{k: ', '.join(v) for k, v in headers.items() if isinstance(v, list)},
+        }
+        self.context.set_extra_http_headers(self._headers)
 
     def loadText(self, text):
         # load content into page

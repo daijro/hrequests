@@ -22,6 +22,10 @@ class JavascriptException(BrowserException):
     '''Exception raised when a javascript error occurs'''
 
 
+class CacheDisabledError(BrowserException):
+    '''Tried to go back when cache was disabled'''
+
+
 class SelectorNotFoundException(Exception):
     '''Exception raised when a css selector is not found'''
 

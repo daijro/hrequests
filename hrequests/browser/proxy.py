@@ -21,6 +21,9 @@ class Proxy:
         r'(?P<port>\d+))?$'
     )
 
+    def __repr__(self) -> str:
+        return f"<BrowserProxy {self.server}>"
+
     @staticmethod
     def from_url(host: str) -> 'Proxy':
         match = Proxy.proxy_reg.match(host)
