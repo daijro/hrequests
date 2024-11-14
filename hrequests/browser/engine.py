@@ -204,7 +204,13 @@ class BrowserObjectWrapper:
 
             return method
 
-        elif asyncio.iscoroutine(attr):
+        # Handle edge case where iscoroutine raises error #67
+        try:
+            is_coro = asyncio.iscoroutine(attr)
+        except TypeError:
+            is_coro = False
+
+        if is_coro:
             # Awaitable property, schedule it in the event loop
             async def task():
                 result = await attr
@@ -212,7 +218,7 @@ class BrowserObjectWrapper:
 
             return _engine.execute(task)
 
-        elif hasattr(attr, '__dict__'):
+        elif callable(attr):
             # Wrap objects with attributes (nested Playwright objects)
             return BrowserObjectWrapper(attr, _engine)
 

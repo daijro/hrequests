@@ -99,6 +99,7 @@ class BrowserSession:
         self.verify: bool = verify
         self.os: Literal['win', 'mac', 'lin'] = os
         self._headers: Optional[dict] = None
+        self.context: Optional[BrowserObjectWrapper] = None
 
         # Browser config
         self.status_code: Optional[int]
@@ -137,14 +138,13 @@ class BrowserSession:
             os=OS_MAP[self.os] if self.os else None,
             **self.launch_options,
         )
-        # Create a new page
-        self.page = self.client.new_page()
         # Save the context
         self.context = self.client.context
+        # Create a new page
+        self.page = self.client.new_page()
 
     def shutdown(self) -> None:
         self._closed = True
-
         self.client.stop()
 
         if self.temp_engine:
@@ -298,11 +298,16 @@ class BrowserSession:
         if not self.mock_human:
             return self.page.type(selector, text, delay=delay, timeout=int(timeout * 1e3))
 
-        for char in text:
-            # Randomly enter characters with a 50% MOE
-            self.page.keyboard.type(
-                char, delay=randint(int(delay * 0.5), int(delay * 1.5))  # nosec
-            )
+        # Fire in engine to avoid blocking call stack with too many keypress calls
+        async def task():
+            keyboard = self.page._obj.keyboard
+            for char in text:
+                # Randomly enter characters with a 50% MOE
+                await keyboard.type(
+                    char, delay=randint(int(delay * 0.5), int(delay * 1.5))  # nosec
+                )
+
+        return self.engine.execute(task)
 
     def click(
         self,
@@ -589,10 +594,23 @@ class BrowserSession:
         # set cookies in playwright instance
         self.context.add_cookies(cookie_renders)
 
+    def run(self, fn: Callable, *args, **kwargs):
+        """
+        Takes an async function and passes it to the engine to execute.
+        """
+
+        async def task():
+            await fn(self.page._obj._obj, *args, **kwargs)
+
+        return self.engine.execute(task)
+
     def close(self):
         if self._closed:
             # Browser was closed, nothing to do
             return
+        # Context never started #66
+        if self.context is None:
+            raise RuntimeError('Browser context was not initialized')
         cookiejar = self.getCookies()
         # Update session if provided
         if self.session:
