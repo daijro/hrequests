@@ -30,6 +30,10 @@ class SelectorNotFoundException(Exception):
     '''Exception raised when a css selector is not found'''
 
 
+class EncodingNotFoundException(Exception):
+    '''Exception raised when no encoding is detected'''
+
+
 class ProxyFormatException(ClientException):
     '''Exception raised when a proxy format is not supported'''
 

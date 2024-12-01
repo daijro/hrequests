@@ -43,6 +43,7 @@ numpy = "*"
 parse = "*"
 selectolax = "*"
 faust-cchardet = "*"
+zstandard = "*"
 camoufox = { version = "^0.3.9", optional = true, extras = ["geoip"] }
 patchright = { version = "*", optional = true }
 playwright = { version = "*", optional = true }

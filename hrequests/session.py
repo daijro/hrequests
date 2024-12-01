@@ -308,19 +308,19 @@ class SessionShortcut:
         )
 
 
+# fmt: off
 class firefox(SessionShortcut):
     name: Literal['firefox'] = 'firefox'
-    versions: Tuple[int, ...] = (102, 104, 105, 106, 108, 110, 117, 120, 123)
+    versions: Tuple[int, ...] = (102, 104, 105, 106, 108, 110, 117, 120, 123, 132)
 
 
 class chrome(SessionShortcut):
     name: Literal['chrome'] = 'chrome'
-    versions: Tuple[int, ...] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117, 120, 124)
-
+    versions: Tuple[int, ...] = (103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 117, 120, 124, 131) 
 
 BROWSER_MAP = {'firefox': firefox, 'chrome': chrome}
 OS_MAP = {'win': 'windows', 'mac': 'macos', 'lin': 'linux'}
-
+# fmt: on
 
 _hg = HeaderGenerator()
 

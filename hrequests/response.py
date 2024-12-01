@@ -1,5 +1,5 @@
 import base64
-import os
+import io
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -7,11 +7,12 @@ from http.client import responses as status_codes
 from typing import Callable, List, Literal, Optional, Union
 
 import cchardet as chardet
+import zstandard as zstd
 from orjson import dumps, loads
 
 import hrequests
 from hrequests.cffi import library
-from hrequests.exceptions import ClientException
+from hrequests.exceptions import ClientException, EncodingNotFoundException
 from hrequests.proxies import BaseProxy
 
 from .cookies import RequestsCookieJar
@@ -158,8 +159,13 @@ class Response:
     proxy: Optional[str] = None
 
     def __post_init__(self) -> None:
-        if type(self.raw) is bytes:
-            self.encoding = chardet.detect(self.raw)['encoding']
+        if type(self.raw) is not bytes:
+            return
+        # Handle zstd encoding
+        if self.raw.startswith(b'\x28\xb5\x2f\xfd'):
+            self.raw = _decode_zstd(self.raw)
+        # Detect encoding
+        self.encoding = chardet.detect(self.raw)['encoding']
 
     @property
     def reason(self) -> str:
@@ -171,11 +177,17 @@ class Response:
     @property
     def content(self) -> bytes:
         # note: this will convert the content to bytes on each access
-        return self.raw if type(self.raw) is bytes else self.raw.encode(self.encoding)
+        if type(self.raw) is not bytes:
+            return self.raw.encode(self.encoding or "utf-8")
+        return self.raw
 
     @property
     def text(self) -> str:
-        return self.raw if type(self.raw) is str else self.raw.decode(self.encoding)
+        if type(self.raw) is str:
+            return self.raw
+        if not self.encoding:
+            raise EncodingNotFoundException('Response does not have a valid encoding.')
+        return self.raw.decode(self.encoding)
 
     @property
     def html(self) -> 'hrequests.parser.HTML':
@@ -238,6 +250,18 @@ class Response:
 
     def __repr__(self):
         return f"<Response [{self.status_code}]>"
+
+
+ZSTD_DECOMPRESSOR = zstd.ZstdDecompressor()
+
+
+def _decode_zstd(raw: bytes) -> bytes:
+    try:
+        with io.BytesIO(raw) as compressed_stream:
+            with ZSTD_DECOMPRESSOR.stream_reader(compressed_stream) as reader:
+                return reader.read()
+    except zstd.ZstdError:
+        return raw
 
 
 def parse_header_links(value):
