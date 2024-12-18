@@ -28,7 +28,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-browserforge = "1.1.2"
+browserforge = "^1.2.1"
 ua_parser = "*"
 orjson = "*"
 httpx = "*"
