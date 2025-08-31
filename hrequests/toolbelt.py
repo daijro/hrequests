@@ -102,7 +102,8 @@ class CaseInsensitiveDict(MutableMapping):
     def __setitem__(self, key, value):
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
-        self._store[key.lower()] = (key, value)
+        real_value = None if value is None else str(value)
+        self._store[key.lower()] = (key, real_value)
 
     def __getitem__(self, key):
         return self._store[key.lower()][1]
@@ -131,6 +132,16 @@ class CaseInsensitiveDict(MutableMapping):
     # Copy is required
     def copy(self):
         return CaseInsensitiveDict(self._store.values())
+
+    def update(self, other=None, **kwargs):
+        if other:
+            if hasattr(other, "items"):
+                other = {k: (None if v is None else str(v)) for k, v in other.items()}
+            else:
+                other = [(k, None if v is None else str(v)) for k, v in other]
+        if kwargs:
+            kwargs = {k: (None if v is None else str(v)) for k, v in kwargs.items()}
+        return super().update(other, **kwargs)
 
     def __repr__(self):
         return str(dict(self.items()))
