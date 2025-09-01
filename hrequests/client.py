@@ -327,7 +327,7 @@ class TLSClient:
         elif isinstance(cookies, list):
             merge_cookies(self.cookies, list_to_cookiejar(cookies))
         elif isinstance(cookies, dict):
-            self.cookies.set_cookie(cookiejar_from_dict(cookies))
+            merge_cookies(self.cookies, cookiejar_from_dict(cookies))
 
         # turn cookie jar into dict
 
