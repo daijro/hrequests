@@ -198,11 +198,14 @@ func main() {
 }
 
 func startServer(port string) {
-	srv = &http.Server{Addr: ":" + port}
+    mux := http.NewServeMux()
 
-	http.HandleFunc("/request", requestHandler)
-	http.HandleFunc("/multirequest", multiRequestHandler)
-	http.HandleFunc("/ping", pingHandler)
+	mux.HandleFunc("/request", requestHandler)
+	mux.HandleFunc("/multirequest", multiRequestHandler)
+	mux.HandleFunc("/ping", pingHandler)
+
+	srv = &http.Server{Addr: ":" + port, Handler: mux}
+
 	// start server
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		// log the error if it's not ErrServerClosed, which we expect when calling srv.Close()
